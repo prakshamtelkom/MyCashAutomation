@@ -1,0 +1,9 @@
+<component name="libraryTable">
+  <library name="xmlwise-1.2.12">
+    <CLASSES>
+      <root url="jar://$PROJECT_DIR$/allure-2.30.0/plugins/xctest-plugin/lib/xmlwise-1.2.11.jar!/" />
+    </CLASSES>
+    <JAVADOC />
+    <SOURCES />
+  </library>
+</component>

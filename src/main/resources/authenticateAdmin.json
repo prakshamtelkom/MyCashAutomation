@@ -1,0 +1,14 @@
+{
+  "id": "${admin.id}",
+  "email": "${admin.email}",
+  "password":"${admin.password}",
+  "deviceType":"${admin.deviceType}",
+  "notificationToken":"${admin.notificationToken}",
+  "msisdn":"${admin.msisdn}",
+  "userType":"${admin.userType}",
+  "pinCode":"${admin.pinCode}",
+  "createdAt":"${admin.createdAt}",
+  "otpState":"${admin.otpState}",
+  "submittedById":"${admin.submittedById}",
+  "jwttoken":"${admin.jwttoken}"
+}

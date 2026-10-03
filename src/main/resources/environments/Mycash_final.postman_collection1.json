@@ -1,0 +1,1429 @@
+{
+  "info": {
+    "_postman_id": "a8de2deb-608e-41c4-b663-9fe0c2285aed",
+    "name": "Mycash_final",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_exporter_id": "51290887",
+    "_collection_link": "https://go.postman.co/collection/51290887-a8de2deb-608e-41c4-b663-9fe0c2285aed?source=collection_link"
+  },
+  "item": [
+    {
+      "name": "Authentication Flow",
+      "item": [
+        {
+          "name": "Request OTP",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"deviceId\": \"{{deviceId}}\",\n  \"msisdn\": \"{{msisdn}}\",\n  \"userType\": \"{{userType}}\",\n  \"deviceType\": \"{{deviceType}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/request-otp",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "request-otp"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Generate Bearer Token",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    const response = pm.response.json();",
+                  "    if (response.token) {",
+                  "        pm.collectionVariables.set(\"token\", response.token);",
+                  "        console.log(\"Token saved to collection variable\");",
+                  "    }",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"deviceId\": \"{{deviceId}}\",\n  \"notificationToken\": \"{{notificationToken}}\",\n  \"userType\": \"{{userType}}\",\n  \"msisdn\": \"{{msisdn}}\",\n  \"pincode\": \"{{pincode}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/get-otp-login-token",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "get-otp-login-token"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Authenticate Subscriber",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"msisdn\": \"{{msisdn}}\",\n  \"pinCode\": \"{{pincode}}\",\n  \"deviceId\": \"{{deviceId}}\",\n  \"userType\": \"{{userType}}\",\n  \"deviceType\": \"{{deviceType}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/authenticate-subscriber",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "authenticate-subscriber"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "User APIs",
+      "item": [
+        {
+          "name": "Get Subscriber Short Info",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"subscriberId\": 432657,\n   \"deviceId\": \"{{deviceId}}\",\n  \"userType\": \"{{userType}}\",\n  \"deviceType\": \"{{deviceType}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/user/get-subscriber-short-info",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "user",
+                "get-subscriber-short-info"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Verify User PIN",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"userId\": 432657,\n  \"pincode\": \"{{pincode}}\",\n   \"deviceId\": \"{{deviceId}}\",\n  \"userType\": \"{{userType}}\",\n  \"deviceType\": \"{{deviceType}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/verify-user-pin",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "verify-user-pin"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Notification Preference",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/user/notification-preference?userId=432657&userType={{userType}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "user",
+                "notification-preference"
+              ],
+              "query": [
+                {
+                  "key": "userId",
+                  "value": "432657"
+                },
+                {
+                  "key": "userType",
+                  "value": "{{userType}}"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Update Notification Preference",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"whatsapp\": true,\n  \"sms\": true,\n  \"deviceId\": \"{{deviceId}}\",\n  \"userType\": \"{{userType}}\",\n  \"deviceType\": \"{{deviceType}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/user/notification-preference",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "user",
+                "notification-preference"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "User Registration APIs",
+      "item": [
+        {
+          "name": "Get Domains (Countries)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/self/domains",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "self",
+                "domains"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Domain Areas (Cities)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/self/domain/areas?id=1",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "self",
+                "domain",
+                "areas"
+              ],
+              "query": [
+                {
+                  "key": "id",
+                  "value": "1"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Subscriber Registration Step 1",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"firstName\": \"John\",\n  \"secondName\": \"Doe\",\n  \"thirdName\": \"Smith\",\n  \"msisdn\": \"+252718888888\",\n  \"areaId\": \"1\",\n  \"gender\": \"MALE\",\n  \"email\": \"john.doe@example.com\",\n  \"pincode\": \"{{pincode}}\",\n  \"deviceId\": \"{{deviceId}}\",\n  \"userType\": \"{{userType}}\",\n  \"deviceType\": \"{{deviceType}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/self/subscriber-registration/step-1",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "self",
+                "subscriber-registration",
+                "step-1"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Documents",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/self/get-documents?is_remittance=false",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "self",
+                "get-documents"
+              ],
+              "query": [
+                {
+                  "key": "is_remittance",
+                  "value": "false"
+                }
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Transfer & Payment APIs",
+      "item": [
+        {
+          "name": "User Mini Statement",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"userId\": 432657,\n  \"walletType\": \"SOS\",\n     \"deviceId\": \"{{deviceId}}\",\n  \"userType\": \"{{userType}}\",\n  \"deviceType\": \"{{deviceType}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/transfer/user-mini-statement",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "transfer",
+                "user-mini-statement"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Biller Transaction List",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/transfer/biller-transaction-list?transferType=BILL_PAYMENT&transferStatus=SUCCESS&walletId=123&page=0&size=10&billerCategory=UTILITY",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "transfer",
+                "biller-transaction-list"
+              ],
+              "query": [
+                {
+                  "key": "transferType",
+                  "value": "BILL_PAYMENT"
+                },
+                {
+                  "key": "transferStatus",
+                  "value": "SUCCESS"
+                },
+                {
+                  "key": "walletId",
+                  "value": "123"
+                },
+                {
+                  "key": "page",
+                  "value": "0"
+                },
+                {
+                  "key": "size",
+                  "value": "10"
+                },
+                {
+                  "key": "billerCategory",
+                  "value": "UTILITY"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Single Subscriber Report",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"userId\": 432657,\n  \"fromDate\": \"2025-01-01\",\n  \"toDate\": \"2025-12-31\",\n  \"transferType\": \"ALL\",\n     \"deviceId\": \"{{deviceId}}\",\n  \"userType\": \"{{userType}}\",\n  \"deviceType\": \"{{deviceType}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/transaction-report/single-subscriber-report-mobile",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "transaction-report",
+                "single-subscriber-report-mobile"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Transfer Detail",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"transferId\": \"TXN123456\",\n     \"deviceId\": \"{{deviceId}}\",\n  \"userType\": \"{{userType}}\",\n  \"deviceType\": \"{{deviceType}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/transfer/get-transfer-detail",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "transfer",
+                "get-transfer-detail"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "P2P Transfer",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"userId\": 432657,\n  \"pincode\": \"{{pincode}}\",\n  \"fromAccountId\": \"WALLET123\",\n  \"toAccountId\": \"WALLET456\",\n  \"receiverPhoneNumber\": \"+252719999999\",\n  \"amount\": {\n    \"amount\": 100.0,\n    \"currency\": \"SOS\"\n  },\n  \"transferType\": \"P2P\",\n  \"currency\": \"SOS\",\n     \"deviceId\": \"{{deviceId}}\",\n  \"userType\": \"{{userType}}\",\n  \"deviceType\": \"{{deviceType}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/transfer/p2p-transfer",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "transfer",
+                "p2p-transfer"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Topup (Airtime/Data)",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"userId\": 432657,\n  \"pincode\": \"{{pincode}}\",\n  \"fromAccountId\": \"WALLET123\",\n  \"toAccountId\": \"TOPUP\",\n  \"receiverPhoneNumber\": \"{{msisdn}}\",\n  \"amount\": {\n    \"amount\": 50.0,\n    \"currency\": \"SOS\"\n  },\n  \"transferType\": \"TOPUP\",\n  \"currency\": \"SOS\",\n     \"deviceId\": \"{{deviceId}}\",\n  \"userType\": \"{{userType}}\",\n  \"deviceType\": \"{{deviceType}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/transfer/topup",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "transfer",
+                "topup"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Pay Bill",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"userId\": 432657,\n  \"pincode\": \"{{pincode}}\",\n  \"fromAccountId\": \"WALLET123\",\n  \"toAccountId\": \"BILLER123\",\n  \"receiverPhoneNumber\": \"\",\n  \"amount\": {\n    \"amount\": 200.0,\n    \"currency\": \"SOS\"\n  },\n  \"transferType\": \"BILL_PAYMENT\",\n  \"currency\": \"SOS\",\n     \"deviceId\": \"{{deviceId}}\",\n  \"userType\": \"{{userType}}\",\n  \"deviceType\": \"{{deviceType}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/transfer/pay-bill",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "transfer",
+                "pay-bill"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Amal Bank APIs",
+      "item": [
+        {
+          "name": "Get Amal Bank Accounts",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/transfer/amal-bank/WALLET123",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "transfer",
+                "amal-bank",
+                "WALLET123"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Beneficiaries by User ID",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/user/beneficiaries-by-userId/432657",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "user",
+                "beneficiaries-by-userId",
+                "432657"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Bank Statement",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"accountNumber\": \"ACC123456\",\n  \"fromDate\": \"2024-01-01\",\n  \"toDate\": \"2024-12-31\",\n     \"deviceId\": \"{{deviceId}}\",\n  \"userType\": \"{{userType}}\",\n  \"deviceType\": \"{{deviceType}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/amal-bank/get-statement",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "amal-bank",
+                "get-statement"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Amal Express Remittance APIs",
+      "item": [
+        {
+          "name": "Remittance List by Mobile",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/transfer/remittance-list-by-mobile?userId=432657&mobileNumber={{msisdn}}&page=0&size=10",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "transfer",
+                "remittance-list-by-mobile"
+              ],
+              "query": [
+                {
+                  "key": "userId",
+                  "value": "432657"
+                },
+                {
+                  "key": "mobileNumber",
+                  "value": "{{msisdn}}"
+                },
+                {
+                  "key": "page",
+                  "value": "0"
+                },
+                {
+                  "key": "size",
+                  "value": "10"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Remittance Countries",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/amal-express/country?requestId=REQ123",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "amal-express",
+                "country"
+              ],
+              "query": [
+                {
+                  "key": "requestId",
+                  "value": "REQ123"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Cities by Country",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/amal-express/GetCitiesByCountryId?requestId=REQ123&countryId=1",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "amal-express",
+                "GetCitiesByCountryId"
+              ],
+              "query": [
+                {
+                  "key": "requestId",
+                  "value": "REQ123"
+                },
+                {
+                  "key": "countryId",
+                  "value": "1"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Services",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/amal-express/getServices?requestId=REQ123&countryId=1",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "amal-express",
+                "getServices"
+              ],
+              "query": [
+                {
+                  "key": "requestId",
+                  "value": "REQ123"
+                },
+                {
+                  "key": "countryId",
+                  "value": "1"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Service Operators",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/amal-express/getServicesOperators?serviceId=1&countryId=1&requestId=REQ123",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "amal-express",
+                "getServicesOperators"
+              ],
+              "query": [
+                {
+                  "key": "serviceId",
+                  "value": "1"
+                },
+                {
+                  "key": "countryId",
+                  "value": "1"
+                },
+                {
+                  "key": "requestId",
+                  "value": "REQ123"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Remittance Transaction List",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/transfer/remittance-transaction-list?transferType=REMITTANCE&transferStatus=SUCCESS&walletId=WALLET123",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "transfer",
+                "remittance-transaction-list"
+              ],
+              "query": [
+                {
+                  "key": "transferType",
+                  "value": "REMITTANCE"
+                },
+                {
+                  "key": "transferStatus",
+                  "value": "SUCCESS"
+                },
+                {
+                  "key": "walletId",
+                  "value": "WALLET123"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Remittance Transaction Details",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/transfer/remittance-transaction-details?transferId=REM123",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "transfer",
+                "remittance-transaction-details"
+              ],
+              "query": [
+                {
+                  "key": "transferId",
+                  "value": "REM123"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Branches",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/amal-express/branches?cityId=1",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "amal-express",
+                "branches"
+              ],
+              "query": [
+                {
+                  "key": "cityId",
+                  "value": "1"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Search Remitter",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/amal-express/search-remitter?searchText=John",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "amal-express",
+                "search-remitter"
+              ],
+              "query": [
+                {
+                  "key": "searchText",
+                  "value": "John"
+                }
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Common & Support APIs",
+      "item": [
+        {
+          "name": "Get Grouped Data Bundles",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"msisdn\": \"{{msisdn}}\",\n     \"deviceId\": \"{{deviceId}}\",\n  \"userType\": \"{{userType}}\",\n  \"deviceType\": \"{{deviceType}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/data-bundle/get-grouped-data-bundles",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "data-bundle",
+                "get-grouped-data-bundles"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Due Bill",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"accountNumber\": \"BILL123456\",\n     \"deviceId\": \"{{deviceId}}\",\n  \"userType\": \"{{userType}}\",\n  \"deviceType\": \"{{deviceType}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/biller/api/get-due-bill",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "biller",
+                "api",
+                "get-due-bill"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "FAQ List",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/faq/list?lang=en",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "faq",
+                "list"
+              ],
+              "query": [
+                {
+                  "key": "lang",
+                  "value": "en"
+                }
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    }
+  ],
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "packages": {},
+        "requests": {},
+        "exec": [
+          ""
+        ]
+      }
+    },
+    {
+      "listen": "test",
+      "script": {
+        "type": "text/javascript",
+        "packages": {},
+        "requests": {},
+        "exec": [
+          ""
+        ]
+      }
+    }
+  ],
+  "variable": [
+    {
+      "key": "deviceId",
+      "value": "Alter"
+    },
+    {
+      "key": "msisdn",
+      "value": "+252718888888"
+    },
+    {
+      "key": "userType",
+      "value": "SUBSCRIBER"
+    },
+    {
+      "key": "deviceType",
+      "value": "ANDROID"
+    },
+    {
+      "key": "pincode",
+      "value": "9999"
+    },
+    {
+      "key": "baseUrl",
+      "value": "http://172.16.50.18:3088"
+    },
+    {
+      "key": "notificationToken",
+      "value": "eOmt7h09TSO3LL7t6zpQID:APA91bEnpByhWgfYx4jkoJkXPGoqAJkZox8vQw3DxEXElQVvlrbM0KeLQY8xMpL_nfh-A7DwSuTUwnjpYjePJ8uD0ofbf-aBVL8XM8fdFRVkkC8alUw0rBQ_wOgqrwlb6TD4gLERakJw"
+    },
+    {
+      "key": "token",
+      "value": "eyJlbmMiOiJBMjU2Q0JDLUhTNTEyIiwiYWxnIjoiUlNBLU9BRVAtNTEyIn0.P6PbymsWm87ysI_YQU5wCQ3AOIqEn9MnAWHoE1n3TSLc_7-TZ9NGxJMp259qeoncw2pp2FM5iM9zRM7v7zgbsRQQdVNyyDf8zi0g5JxAcdxksif0YScO9v5Fe3qOrycmyomRj-_XFj31Rx3AOfLl41liHZr-Y0njR-7RQWjVDyXVPb143sGQl4g7t9Gs7T8QMUin3CHtvLCCVALgA6JN_22eyQIAsSQyfmKBEGZTyH1VVQhAdr-JKd8J03EsFGsfEnFjQSM8Rh_5IoWX-Zlad4n0LjuaKHhPtqs5ka5n2bfSxzGb78VH_ehywkCiHkaXRKePEiIZNL_v2i9Obn8CsQ.BAxdw6zX7DraYSp4EV-R7Q.zq1W7a3tIR9BQCumW9FuHKO81pcX8AwnV7BtsiQ2E5440s9b9MiUWaX4OP4XqkeiJwuIiTKQWh09TNQLpgM8Wo96LBjgcOmUNsbeyFy_D9Dt1vEauiz8YYaQ-AhNQk3QlljZuew5CBZLyBcFJGuomb7KghqfF1GJhVtgvi0FAxtpP3YrU1xbkE-3iiGNG3S5wfQ-khth5EyOYl2SmEdOj64rX8wMAMNjsOJSTNy0unrWQuqAHKrL_ghxAVPLL-giX8-E7FBRCldv5mWaDQ7eC6pFvK73T-sWO1imrxT7y54.KfLVARiATxJEYTNAZyBxSq994AWxvZuJzRgsOGWBD0w"
+    }
+  ]
+}

@@ -1,0 +1,19 @@
+<!DOCTYPE suite SYSTEM "https://testng.org/testng-1.0.dtd">
+
+<suite name="Postman API Suite">
+
+    <test name="Postman Collection">
+
+        <groups>
+            <run>
+                <include name="postman"/>
+            </run>
+        </groups>
+
+        <classes>
+            <class name="com.mycash.api.tests.RunFullCollectionTest"/>
+        </classes>
+
+    </test>
+
+</suite>

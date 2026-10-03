@@ -1,0 +1,4 @@
+{
+  "msisdn":"${admin.email}",
+  "pinCode":"9999"
+ }

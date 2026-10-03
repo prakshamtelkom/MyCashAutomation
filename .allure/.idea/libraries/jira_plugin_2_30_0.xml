@@ -1,0 +1,9 @@
+<component name="libraryTable">
+  <library name="jira-plugin-2.30.0">
+    <CLASSES>
+      <root url="jar://$PROJECT_DIR$/allure-2.30.0/plugins/jira-plugin/jira-plugin-2.30.0.jar!/" />
+    </CLASSES>
+    <JAVADOC />
+    <SOURCES />
+  </library>
+</component>
