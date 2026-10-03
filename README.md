@@ -1,340 +1,395 @@
 MyCash API Automation Framework
 A reusable, data-driven API automation framework for functional API testing and performance testing of MyCash services.
-The framework supports:
-Functional API automation using Java + REST Assured + TestNG
+The framework provides a common automation platform for:
+Functional API automation
 Excel-driven API execution
 Postman collection execution
-API/module/sheet/method/workbook level filtering
-Authentication and token management
-Request/response validation
+API authentication and token management
+API request/response validation
 Allure and Extent reporting
-Configurable QA environment execution
-Performance testing using JMeter Java DSL
-Load, Stress, Spike and Soak testing
-Automated JTL generation
-Automated HTML performance reporting
-JMeter HTML dashboard generation
-1. Framework Overview
-The framework is divided into two independent execution areas:
-                         MyCash API Automation
-                                  |
-                  +---------------+---------------+
-                  |                               |
-          Functional API Testing           Performance Testing
-                  |                               |
-        REST Assured + TestNG             JMeter Java DSL
-                  |                               |
-        +---------+---------+             +-------+--------+
-        |                   |             |                |
-      Excel              Postman        Load             Stress
-        |                   |             |                |
-        +---------+---------+             Spike            Soak
-                  |                               |
-          API Validation                  JTL / Metrics
-                  |                               |
-          Allure + Extent                 HTML Reports
-The functional and performance suites are intentionally kept separate so that functional execution can be performed without triggering performance workloads.
-2. Functional API Automation
-2.1 Functional Testing Capabilities
-The functional automation framework provides a reusable execution layer for validating MyCash APIs.
-Key capabilities
-REST API execution using REST Assured
-GET, POST, PUT and other supported HTTP methods
-Excel-driven API definitions
-Postman collection execution
-Environment-based configuration
-Authentication/token handling
-Request payload execution
-Response status validation
-Response body capture
-API-level pass/fail validation
-Dynamic API test naming
-API execution filtering
-Parallel API execution through TestNG DataProvider
-Allure reporting
-Extent reporting
-Request/response attachments
-Failed API details in reports
-2.2 Excel-Driven API Automation
-Functional APIs can be maintained in Excel workbooks instead of hard-coding individual test methods.
-The framework reads API definitions from Excel using:
-Excel Workbook
-      |
-      v
-ExcelUtils
-      |
-      v
-Sheet
-      |
-      v
-APIData
-      |
-      v
-ApiTestRunner
-      |
-      v
-REST Assured
-      |
-      v
-API Response
-      |
-      v
-Validation + Reporting
-This allows new APIs to be added or existing API details to be updated primarily through test data/configuration rather than creating a new Java test method for every API.
-Typical API information maintained through the Excel-driven model includes:
-API name
-HTTP method
-Endpoint
-Request payload
-Sheet/module
-Environment-specific information
-API-specific test data
-3. Functional API Execution
-The main functional execution class is:
-src/test/java/com/mycash/api/tests/RunFullCollectionTest.java
-The execution flow is:
-TestNG
-   |
-   v
-RunFullCollectionTest
-   |
-   +---- Load Excel APIs
-   |
-   +---- Load Postman collection
-   |
-   v
-ExecutionFilter
-   |
-   v
-ApiTestRunner
-   |
-   v
-REST Assured
-   |
-   v
-API Response
-   |
-   +---- Status validation
-   +---- Response validation
-   +---- Allure attachment
-   +---- Extent reporting
-   |
-   v
-TestNG Result
-Each API is treated as an individual TestNG execution and receives its own execution result.
-4. API Execution Sources
-The functional framework supports two API sources.
-Excel APIs
-Excel-based APIs are loaded through:
-ExcelUtils
-and executed using:
-ApiTestRunner
-Postman APIs
-The framework also supports execution of the configured Postman collection:
-src/main/resources/environments/Mycash_final.postman_collection1.json
-Postman execution is handled through:
-PostmanCollectionRunner
-This allows the framework to execute APIs maintained in both Excel and Postman formats.
-5. Functional Execution Filtering
-The framework provides runtime filtering so that users do not need to modify Java code to execute a smaller subset of APIs.
-Supported filters include:
--Dworkbook
--Dsheet
--Dapi
--Dmethod
--Dsource
--Dtags
--DfailedOnly
--Denv
--Dsuite
--Dmode
--Dthreads
-Execute a specific workbook
-mvn clean test \
--Dsurefire.suiteXmlFiles=src/test/resources/testng-excel.xml \
--Dworkbook=20260917_20APIsGateway3088.xlsx
-Execute a specific sheet
-mvn clean test \
--Dsurefire.suiteXmlFiles=src/test/resources/testng-excel.xml \
--Dsheet=ALL
-Execute a specific API
-mvn clean test \
--Dsurefire.suiteXmlFiles=src/test/resources/testng-excel.xml \
--Dapi="API_NAME"
-Execute a specific HTTP method
-mvn clean test \
--Dsurefire.suiteXmlFiles=src/test/resources/testng-excel.xml \
--Dmethod=GET
-Execute multiple APIs
-mvn clean test \
--Dsurefire.suiteXmlFiles=src/test/resources/testng-excel.xml \
--Dapi="API_1,API_2,API_3"
-The filters can be combined when a more targeted functional execution is required.
-6. Authentication & Token Management
-Authentication is handled through the reusable authentication layer:
-src/test/java/com/mycash/core/auth/
-Important components include:
-TokenManager
-AuthCache
-The framework supports an authentication flow where required:
-Authentication Request
-        |
-        v
-Session/Cookies
-        |
-        v
-OTP Verification
-        |
-        v
-Bearer Token
-        |
-        v
-Authenticated API Execution
-Authentication configuration is externalized through environment properties rather than being embedded inside individual API tests.
-7. Environment Configuration
-Environment-specific configuration is maintained under:
-src/main/resources/
-Examples include:
-qa.properties
-stage.properties
-The framework loads environment configuration through:
-ConfigReader
-ConfigManager
-TestConfigInitializer
-This separates environment-specific values from API execution logic.
-Typical configuration includes:
-Base URL
-Authentication endpoints
-User configuration
-API environment settings
-Authentication-related properties
-Credentials and secrets should not be committed to source control. Use environment variables or an approved secret-management mechanism for shared repositories.
-8. Request & Response Handling
-Reusable request/response components are provided through:
-core/specs/
-including:
-RequestSpecFactory
-ResponseSpecFactory
-The execution layer provides common handling for API requests and responses.
-The framework captures useful execution information such as:
-HTTP method
-Request URI
-Request payload
-HTTP status code
-Response body
-Execution result
-Error information
-Response timing
-9. API Validation
-Every API execution produces an ApiResult.
-The result contains information required to determine whether the API execution was successful.
-The functional execution validates the API result and fails the corresponding TestNG test when the API execution is unsuccessful.
-Example validation flow:
-API Request
-    |
-    v
-Response
-    |
-    v
-ApiResult
-    |
-    +---- Status
-    +---- Response
-    +---- Error
-    |
-    v
-Validation
-    |
-    +---- PASS
-    |
-    +---- FAIL
-Failed API executions include relevant status/error information to simplify troubleshooting.
-10. Reporting — Functional Testing
-The framework supports both Allure and Extent Reports for functional execution.
-Allure
-Allure provides detailed API-level execution information including:
-API name
-Source
-Workbook
-Sheet/module
-HTTP method
-Endpoint
-Request body
-Response body
-Execution status
-API execution hierarchy
-The framework also attaches request and response information to the Allure report.
-Extent
-Extent reporting provides an additional execution view containing:
-API execution status
-Source
-Workbook
-Sheet/module
-API result
-Failure information
-Reporting components are maintained under:
-src/test/java/com/mycash/core/reporting/
-11. Functional Test Suites
-Functional execution is separated from performance execution.
-Functional suite
-src/test/resources/testng-all.xml
-Excel API suite
-src/test/resources/testng-excel.xml
-Postman suite
-src/test/resources/testng-postman.xml
-Performance suite
-src/test/resources/testng-performance.xml
-This separation prevents functional API execution from accidentally triggering performance workloads.
-12. Smoke Testing
-The framework also contains smoke-test support under:
-src/test/java/com/mycash/smoke/
-Example:
-UserSmokeTest
-Smoke tests can be used for quick validation of critical functionality before executing broader API suites.
-13. Performance Testing
-The performance framework is implemented separately from the functional execution layer.
-Technology:
-Java
-TestNG
-JMeter Java DSL
-Excel
-Performance execution supports:
+Smoke testing
 Load testing
 Stress testing
 Spike testing
 Soak testing
-Configurable concurrency
-Ramp-up
-Duration
-Iterations
-API selection
-Workbook selection
-Gateway/Core environment selection
-Authentication pre-flight
-Bearer token handling
-JTL generation
-Automated HTML reporting
-JMeter HTML dashboard
-14. Performance API Selection
-Performance APIs are also Excel-driven.
-Default configuration:
+Automated JTL generation
+Automated HTML performance reporting
+JMeter HTML dashboard generation
+1. Framework Overview
+The framework is designed to support both functional API validation and performance testing while keeping their execution flows independent.
+High-Level Architecture
+flowchart TB
+
+    A[MyCash API Automation Framework]
+
+    A --> B[Functional API Automation]
+    A --> C[Performance Testing]
+
+    B --> B1[Excel API Inventory]
+    B --> B2[Postman Collection]
+
+    B1 --> B3[API Execution]
+    B2 --> B3
+
+    B3 --> B4[REST Assured]
+    B4 --> B5[TestNG]
+    B5 --> B6[API Validation]
+
+    B6 --> B7[Allure Report]
+    B6 --> B8[Extent Report]
+
+    C --> C1[Excel API Inventory]
+    C1 --> C2[Performance Configuration]
+    C2 --> C3[Authentication & Pre-flight]
+
+    C3 --> C4[Load]
+    C3 --> C5[Stress]
+    C3 --> C6[Spike]
+    C3 --> C7[Soak]
+
+    C4 --> C8[JMeter Java DSL]
+    C5 --> C8
+    C6 --> C8
+    C7 --> C8
+
+    C8 --> C9[JTL Results]
+    C9 --> C10[Custom HTML Report]
+    C9 --> C11[JMeter HTML Dashboard]
+2. Key Features
+
+
+Area
+Capability
+API Automation
+REST Assured + TestNG
+API Data
+Excel-driven
+API Source
+Excel + Postman
+Authentication
+Token/session based
+Validation
+Status, response and execution validation
+Functional Reporting
+Allure + Extent
+Smoke Testing
+Supported
+Performance Engine
+JMeter Java DSL
+Performance Execution
+TestNG
+Performance Scenarios
+Load / Stress / Spike / Soak
+Performance Data
+Excel
+Performance Results
+JTL
+Performance Reporting
+Custom HTML + JMeter Dashboard
+Configuration
+Externalized properties
+Filtering
+Workbook / Sheet / API / Method
+CI Execution
+Maven/TestNG compatible
+3. Functional API Automation
+3.1 Functional Testing
+The functional automation layer provides reusable API execution and validation capabilities using:
+Java
+REST Assured
+TestNG
+Excel
+Postman collections
+Allure
+Extent Reports
+The framework is designed to avoid creating a separate Java test method for every API. API definitions and execution data are maintained externally wherever possible.
+Functional capabilities
+GET, POST, PUT and other HTTP methods
+Excel-driven API execution
+Postman collection execution
+Environment-based configuration
+Authentication/token handling
+Request payload handling
+Response validation
+Status-code validation
+API-level pass/fail reporting
+API filtering
+Workbook/sheet filtering
+HTTP method filtering
+Parallel execution support
+Request/response reporting
+Allure attachments
+Extent reporting
+Smoke-test execution
+4. Functional API Architecture
+flowchart LR
+
+    A[Excel API Inventory] --> C[API Data Loader]
+    B[Postman Collection] --> C
+
+    C --> D[Execution Filter]
+
+    D --> E[Authentication / Token Manager]
+
+    E --> F[API Test Runner]
+
+    F --> G[REST Assured]
+
+    G --> H[API Response]
+
+    H --> I[Validation]
+
+    I --> J[TestNG Result]
+
+    J --> K[Allure Report]
+    J --> L[Extent Report]
+The functional execution flow is:
+API Source
+    ↓
+Excel / Postman
+    ↓
+API Data Loading
+    ↓
+Execution Filtering
+    ↓
+Authentication
+    ↓
+REST Assured Request
+    ↓
+API Response
+    ↓
+Validation
+    ↓
+TestNG Result
+    ↓
+Allure / Extent Report
+5. Excel-Driven API Automation
+The framework supports data-driven API execution through Excel workbooks.
+API inventory can be maintained externally and loaded at runtime.
+This provides the following benefits:
+No hard-coded API execution for every endpoint
+Easy addition of new APIs
+Easy modification of test data
+Module/sheet-based organization
+API-level filtering
+Method-level filtering
+Reusable execution logic
+Typical information maintained in the Excel-driven model includes:
+API name
+HTTP method
+Endpoint
+Request payload
+Module/sheet
+Test data
+Environment-specific information
+Execution Model
+Excel Workbook
+      ↓
+ExcelUtils
+      ↓
+API Data
+      ↓
+Execution Filter
+      ↓
+API Runner
+      ↓
+REST Assured
+      ↓
+Response
+      ↓
+Validation
+6. Postman Collection Automation
+The framework also supports API execution from the configured Postman collection.
+Example collection:
+src/main/resources/environments/
+└── Mycash_final.postman_collection1.json
+This allows existing API definitions maintained in Postman to be incorporated into the automation framework without recreating every API manually.
+7. Functional API Execution
+The primary functional execution layer is located under:
+src/test/java/com/mycash/api/
+The framework provides reusable execution components for:
+API loading
+API execution
+Authentication
+Request construction
+Response handling
+Validation
+Reporting
+A typical functional execution is initiated using TestNG/Maven.
+Functional Suite
+src/test/resources/testng-excel.xml
+Additional suites are available depending on the execution requirement.
+8. API Filtering
+The framework supports runtime filtering so that users can execute only the required APIs without modifying Java code.
+Typical filters include:
+Workbook
+Sheet
+API
+HTTP method
+Environment
+Execution source
+Execute Functional Suite
+mvn clean test \
+-Dsurefire.suiteXmlFiles=src/test/resources/testng-excel.xml
+Execute a Specific API
+mvn clean test \
+-Dsurefire.suiteXmlFiles=src/test/resources/testng-excel.xml \
+-Dapi="API_NAME"
+Execute Multiple APIs
+mvn clean test \
+-Dsurefire.suiteXmlFiles=src/test/resources/testng-excel.xml \
+-Dapi="API_1,API_2,API_3"
+Execute a Specific HTTP Method
+mvn clean test \
+-Dsurefire.suiteXmlFiles=src/test/resources/testng-excel.xml \
+-Dmethod=GET
+9. Authentication & Token Management
+Authentication is implemented through reusable authentication components.
+The framework supports authenticated API execution through token/session management.
+Typical flow:
+sequenceDiagram
+    participant T as TestNG
+    participant A as Auth Manager
+    participant S as Authentication Service
+    participant API as MyCash API
+
+    T->>A: Request Token
+    A->>S: Authenticate
+    S-->>A: Session / Token
+    A-->>T: Authentication Context
+    T->>API: API Request + Token
+    API-->>T: API Response
+    T->>T: Validate Response
+Authentication-related components are maintained under the core authentication layer.
+Authentication configuration is externalized from individual API test methods.
+10. Request & Response Handling
+Reusable request and response specifications are provided through the framework's core components.
+The framework centralizes common API handling such as:
+Request specification
+Base URI
+Headers
+Authentication
+Request payload
+Response specification
+Status-code validation
+Response capture
+Error handling
+This reduces duplication across individual API tests.
+11. API Validation
+Each API execution produces an execution result that can be evaluated by the functional test layer.
+Validation can include:
+HTTP status
+Response content
+API execution status
+Error information
+Expected/actual result
+Simplified flow:
+API Request
+    ↓
+API Response
+    ↓
+Status / Response Validation
+    ↓
+PASS / FAIL
+Failed API executions provide relevant execution information for troubleshooting.
+12. Functional Reporting
+The functional automation layer supports:
+Allure Reporting
+Allure provides detailed execution visibility including:
+API name
+HTTP method
+Endpoint
+Request information
+Response information
+Execution status
+Failure details
+Request/response attachments
+Extent Reporting
+Extent Reports provide an additional execution summary including:
+API execution status
+API name
+Result
+Failure information
+Execution details
+Functional reporting is intentionally kept independent from the performance reporting pipeline.
+13. Smoke Testing
+The framework contains smoke-test support for quick validation of critical APIs/business functionality.
+Smoke tests can be executed independently before broader functional or performance execution.
+Example location:
+src/test/java/com/mycash/smoke/
+14. Performance Testing
+The performance framework is implemented as a separate execution layer using:
+Java
+TestNG
+JMeter Java DSL
+Excel
+Maven
+The framework supports configurable performance testing without requiring changes to the Java execution code for normal workload changes.
+15. Performance Architecture
+flowchart LR
+
+    A[Excel API Inventory]
+    B[performance.properties]
+
+    A --> C[Performance API Loader]
+    B --> D[Performance Configuration]
+
+    C --> E[Performance Plan Factory]
+    D --> E
+
+    E --> F[Authentication]
+
+    F --> G[Pre-flight API Validation]
+
+    G --> H{Validation Result}
+
+    H -->|2xx| I[Start Performance Test]
+    H -->|401 / 403 / Failure| J[Fail Fast]
+
+    I --> K[Load]
+    I --> L[Stress]
+    I --> M[Spike]
+    I --> N[Soak]
+
+    K --> O[JMeter Java DSL]
+    L --> O
+    M --> O
+    N --> O
+
+    O --> P[JTL Result]
+
+    P --> Q[Custom HTML Dashboard]
+    P --> R[JMeter HTML Dashboard]
+16. Performance API Selection
+Performance APIs are maintained through Excel workbooks.
+The framework loads the configured workbook and applies runtime filters.
+Default configuration is maintained in:
 src/test/resources/performance.properties
-The workbook can be changed without modifying the performance Java code.
+Example:
+perf.env=qa
+perf.sheet=ALL
+perf.api=ALL
+perf.method=ALL
+perf.scenario=baseline
+perf.executionMode=sequence
+perf.threads=1
+perf.durationSeconds=60
+perf.iterations=1
+The workbook can be overridden at runtime.
 Example:
 mvn clean test \
 -Dsurefire.suiteXmlFiles=src/test/resources/testng-performance.xml \
 -Dperf.workbook=src/main/resources/1_108APIsGateway3088.xlsx
-API and HTTP method filtering are also supported:
--Dperf.api="API_NAME"
--Dperf.method=GET
-15. Performance Scenarios
-Load
+17. Performance Scenarios
+Load Testing
+Used to evaluate API behavior under expected/conventional concurrent load.
 mvn clean test \
 -Dsurefire.suiteXmlFiles=src/test/resources/testng-performance.xml \
 -Dperf.scenario=load \
 -Dperf.threads=10 \
 -Dperf.durationSeconds=300
-Stress
+Stress Testing
+Used to gradually increase workload beyond the expected operating level and observe system behavior.
 mvn clean test \
 -Dsurefire.suiteXmlFiles=src/test/resources/testng-performance.xml \
 -Dperf.scenario=stress \
@@ -342,7 +397,8 @@ mvn clean test \
 -Dperf.maxThreads=50 \
 -Dperf.rampUpSeconds=60 \
 -Dperf.holdSeconds=120
-Spike
+Spike Testing
+Used to evaluate system behavior when concurrency increases sharply.
 mvn clean test \
 -Dsurefire.suiteXmlFiles=src/test/resources/testng-performance.xml \
 -Dperf.scenario=spike \
@@ -350,37 +406,62 @@ mvn clean test \
 -Dperf.maxThreads=50 \
 -Dperf.rampUpSeconds=30 \
 -Dperf.holdSeconds=60
-Soak
+Soak Testing
+Used to evaluate API/system behavior over an extended duration.
 mvn clean test \
 -Dsurefire.suiteXmlFiles=src/test/resources/testng-performance.xml \
 -Dperf.scenario=soak \
 -Dperf.threads=10 \
 -Dperf.durationSeconds=1800
-16. Performance Authentication & Pre-flight
-For authenticated performance APIs, the framework performs authentication before starting the load.
+18. Performance Authentication & Pre-flight
+Authenticated performance execution performs authentication and API pre-flight validation before starting the actual performance workload.
 Authenticate
-     |
-     v
-OTP Verification
-     |
-     v
+     ↓
+OTP / Token Validation
+     ↓
 Bearer Token
-     |
-     v
-Pre-flight API Validation
-     |
-     +---- 2xx --> Start Performance Test
-     |
-     +---- 401/403 --> Fail Fast
-This prevents an invalid authentication state from producing misleading performance results.
-17. Performance Reporting
-Performance execution produces:
+     ↓
+Pre-flight API
+     ↓
+2xx Response
+     ↓
+Start Performance Test
+If authentication or pre-flight validation returns an authentication/authorization failure such as 401 or 403, the framework fails fast rather than generating misleading performance results.
+This helps distinguish:
+Authentication / Environment Issue
+              from
+Actual Performance Behaviour
+19. Gateway and Core Performance Testing
+The framework supports different MyCash API environments/workbooks.
+Gateway
+Example:
+mvn clean test \
+-Dsurefire.suiteXmlFiles=src/test/resources/testng-performance.xml \
+-Dperf.workbook=src/main/resources/1_108APIsGateway3088.xlsx
+Core
+For Core APIs where authentication is not required:
+mvn clean test \
+-Dsurefire.suiteXmlFiles=src/test/resources/testng-performance.xml \
+-Dperf.workbook=src/main/resources/1_72APIsCore8080.xlsx \
+-Dperf.baseUrl=http://172.16.50.18:8080 \
+-Dperf.authRequired=false
+20. Performance API Filtering
+A specific API can be executed using:
+-Dperf.api="API_NAME"
+Multiple APIs can be selected:
+-Dperf.api="API_1,API_2,API_3"
+HTTP method filtering:
+-Dperf.method=GET
+This allows targeted performance validation without changing the performance execution code.
+21. Performance Results
+The performance execution generates a JTL result file:
 target/performance-results.jtl
-The framework then generates:
+The JTL contains request-level performance information that is used to generate the reporting dashboards.
+22. Automated Performance Reporting
+The framework automatically generates two levels of HTML reporting.
+Management-Friendly HTML Report
 target/performance-report/index.html
-and:
-target/performance-report/jmeter-dashboard/index.html
-The reporting layer provides metrics including:
+The custom dashboard provides:
 Total requests
 Successful requests
 Failed requests
@@ -397,156 +478,164 @@ Response-code distribution
 Response-time distribution
 Throughput over time
 Average response time over time
-API-level performance summary
-Configured performance thresholds
-A packaged report is also generated:
+API-level summary
+Configured thresholds
+JMeter HTML Dashboard
+target/performance-report/jmeter-dashboard/index.html
+This provides the standard JMeter dashboard generated from the JTL result.
+23. Performance Report Package
+A complete performance report package is generated as:
 target/MyCash_Performance_Report_*.zip
-18. Functional vs Performance Execution
+The package can be shared with stakeholders for reviewing the execution results.
+The custom management dashboard is designed to be easier to consume for offline review.
+24. Performance Thresholds
+Performance thresholds can be configured in:
+src/test/resources/performance.properties
+Example:
+perf.p95Ms=5000
+perf.p99Ms=8000
+perf.maxErrorRatePercent=5
+The framework can use these thresholds to determine whether configured performance criteria have been exceeded.
+The generated report still remains available for investigation even when a threshold causes the TestNG performance execution to fail.
+25. Functional vs Performance Execution
 
 
 Capability
-Functional API Automation
-Performance Testing
-REST API validation
-Yes
-Yes
+Functional
+Performance
+REST API execution
+✓
+✓
 Excel-driven APIs
-Yes
-Yes
+✓
+✓
 Postman collection
-Yes
-No
-TestNG
-Yes
-Yes
+✓
+—
 REST Assured
-Yes
-Supporting/API layer
-JMeter Java DSL
-No
-Yes
-Load testing
-No
-Yes
-Stress testing
-No
-Yes
-Spike testing
-No
-Yes
-Soak testing
-No
-Yes
+✓
+—
+TestNG
+✓
+✓
 Authentication
-Yes
-Yes
+✓
+✓
 API filtering
-Yes
-Yes
-Allure reporting
-Yes
-No
-Extent reporting
-Yes
-No
+✓
+✓
+Workbook filtering
+✓
+✓
+Method filtering
+✓
+✓
+API validation
+✓
+✓
+Allure
+✓
+—
+Extent
+✓
+—
+Load testing
+—
+✓
+Stress testing
+—
+✓
+Spike testing
+—
+✓
+Soak testing
+—
+✓
+JMeter Java DSL
+—
+✓
 JTL generation
-No
-Yes
-JMeter HTML dashboard
-No
-Yes
+—
+✓
+JMeter Dashboard
+—
+✓
 Performance thresholds
-No
-Yes
-19. Project Structure
-src/
-├── main/
-│   └── resources/
-│       ├── *.xlsx
-│       ├── environments/
-│       │   ├── Mycash_final.postman_collection1.json
-│       │   └── MyCash_TestPlan.jmx
-│       ├── payloads/
-│       ├── qa.properties
-│       └── stage.properties
+—
+✓
+26. Test Suite Separation
+Functional and performance executions are maintained as separate TestNG suites.
+Functional
+src/test/resources/testng-all.xml
+src/test/resources/testng-excel.xml
+Performance
+src/test/resources/testng-performance.xml
+This prevents normal functional API execution from accidentally starting performance workloads.
+27. Project Structure
+MyCash API Automation
 │
-└── test/
-    ├── java/
-    │   └── com/mycash/
-    │       ├── api/tests/
-    │       │   ├── RunFullCollectionTest.java
-    │       │   └── AuthenticationAndUserFlowTests.java
-    │       │
-    │       ├── core/
-    │       │   ├── auth/
-    │       │   ├── clients/
-    │       │   ├── config/
-    │       │   ├── execution/
-    │       │   ├── model/
-    │       │   ├── reporting/
-    │       │   ├── specs/
-    │       │   └── Utills/
-    │       │
-    │       ├── services/
-    │       ├── smoke/
-    │       │
-    │       └── performance/
-    │           ├── auth/
-    │           ├── config/
-    │           ├── engine/
-    │           ├── loader/
-    │           ├── model/
-    │           └── report/
-    │
-    └── resources/
-        ├── testng-all.xml
-        ├── testng-excel.xml
-        ├── testng-postman.xml
-        ├── testng-performance.xml
-        ├── performance.properties
-        └── allure.properties
-20. Recommended Execution Model
-For normal API validation:
-Excel / Postman
-       |
-       v
-Functional API Suite
-       |
-       v
-API Validation
-       |
-       v
-Allure / Extent
-For performance validation:
-Excel API Inventory
-       |
-       v
-Performance Configuration
-       |
-       v
-Authentication + Pre-flight
-       |
-       v
-Load / Stress / Spike / Soak
-       |
-       v
-JTL
-       |
-       v
-HTML + JMeter Dashboard
-This architecture allows the same API inventory and environment information to support both functional validation and performance testing while keeping the two execution models isolated.
-21. Technology Stack
+├── src/
+│   │
+│   ├── main/
+│   │   └── resources/
+│   │       ├── *.xlsx
+│   │       ├── environments/
+│   │       │   └── Mycash_final.postman_collection1.json
+│   │       ├── payloads/
+│   │       └── environment properties
+│   │
+│   └── test/
+│       │
+│       ├── java/
+│       │   └── com/mycash/
+│       │       │
+│       │       ├── api/
+│       │       │   └── tests/
+│       │       │
+│       │       ├── core/
+│       │       │   ├── auth/
+│       │       │   ├── clients/
+│       │       │   ├── config/
+│       │       │   ├── execution/
+│       │       │   ├── model/
+│       │       │   ├── reporting/
+│       │       │   ├── specs/
+│       │       │   └── Utills/
+│       │       │
+│       │       ├── services/
+│       │       │
+│       │       ├── smoke/
+│       │       │
+│       │       └── performance/
+│       │           ├── auth/
+│       │           ├── config/
+│       │           ├── engine/
+│       │           ├── loader/
+│       │           ├── model/
+│       │           └── report/
+│       │
+│       └── resources/
+│           ├── testng-all.xml
+│           ├── testng-excel.xml
+│           ├── testng-performance.xml
+│           ├── performance.properties
+│           └── allure.properties
+│
+├── PERFORMANCE_TEST_GUIDE.md
+├── pom.xml
+└── README.md
+28. Technology Stack
 
 
-Area
+Category
 Technology
 Language
 Java
-Build
+Build Tool
 Maven
-Functional API
+Functional API Automation
 REST Assured
-Functional Execution
+Test Framework
 TestNG
 API Data
 Excel
@@ -556,8 +645,6 @@ Functional Reporting
 Allure + Extent
 Performance Engine
 JMeter Java DSL
-Performance Execution
-TestNG
 Performance Data
 Excel
 Performance Result
@@ -566,37 +653,138 @@ Performance Dashboard
 JMeter HTML Dashboard
 Custom Reporting
 HTML
-Logging
-Log4j / SLF4J
-22. Key Design Principles
-The framework is designed around the following principles:
-Data-driven — API definitions are maintained externally through Excel/Postman.
-Configuration-driven — environment and execution parameters are externalized.
-Reusable — common authentication, request, execution and reporting components are centralized.
-Filterable — users can execute specific workbooks, sheets, APIs or methods.
-Reportable — functional and performance executions generate dedicated reports.
-Scalable — the framework can handle increasing API inventory without creating a separate Java test method for every API.
-Isolated — functional and performance suites can be executed independently.
-CI-friendly — Maven/TestNG based execution can be integrated into CI pipelines.
-23. Quick Start
-Functional API execution
+Configuration
+Properties
+Execution
+Maven + TestNG
+29. Configuration-Driven Design
+The framework follows a configuration-driven approach.
+The following can generally be changed without modifying the core execution code:
+Functional
+Environment
+Workbook
+Sheet
+API
+HTTP method
+Test data
+Execution source
+Performance
+Environment
+Workbook
+Sheet
+API
+HTTP method
+Scenario
+Threads
+Maximum threads
+Ramp-up
+Duration
+Iterations
+Authentication requirement
+Performance thresholds
+This allows the framework to scale as the API inventory grows.
+30. Recommended Execution Flow
+Functional API Testing
+Excel / Postman
+      ↓
+API Loader
+      ↓
+Filter APIs
+      ↓
+Authentication
+      ↓
+REST Assured
+      ↓
+API Validation
+      ↓
+TestNG
+      ↓
+Allure / Extent
+Performance Testing
+Excel API Inventory
+      ↓
+Performance Configuration
+      ↓
+Authentication
+      ↓
+Pre-flight Validation
+      ↓
+Load / Stress / Spike / Soak
+      ↓
+JMeter Java DSL
+      ↓
+JTL
+      ↓
+HTML Reports
+      ↓
+JMeter Dashboard
+31. Quick Start
+Functional API Automation
 mvn clean test \
 -Dsurefire.suiteXmlFiles=src/test/resources/testng-excel.xml
-Performance execution
+Performance Load Test
 mvn clean test \
 -Dsurefire.suiteXmlFiles=src/test/resources/testng-performance.xml \
 -Dperf.scenario=load \
 -Dperf.threads=10 \
 -Dperf.durationSeconds=300
-The framework therefore provides a single automation repository covering the complete API quality lifecycle:
-Functional API Validation
-          +
-Authentication
-          +
-API Data Management
-          +
-Reporting
-          +
-Performance Testing
-          +
-Performance Analytics
+Specific Performance API
+mvn clean test \
+-Dsurefire.suiteXmlFiles=src/test/resources/testng-performance.xml \
+-Dperf.scenario=load \
+-Dperf.api="API_NAME" \
+-Dperf.threads=10 \
+-Dperf.durationSeconds=300
+32. Repository Outputs
+Functional execution:
+Allure Results
+Extent Report
+TestNG Results
+Logs
+Performance execution:
+target/
+├── performance-results.jtl
+├── performance-report/
+│   ├── index.html
+│   └── jmeter-dashboard/
+│       └── index.html
+└── MyCash_Performance_Report_*.zip
+33. Design Principles
+The framework follows these principles:
+Data-driven — API definitions are maintained externally.
+Configuration-driven — execution parameters are externalized.
+Reusable — common API, authentication and reporting components are centralized.
+Scalable — new APIs can be added without creating a new execution framework.
+Filterable — specific APIs, sheets, methods and workbooks can be executed.
+Reportable — functional and performance executions provide dedicated reporting.
+Isolated — functional and performance suites are independently executable.
+CI-friendly — Maven and TestNG based execution can be integrated with CI pipelines.
+34. Security & Repository Hygiene
+Do not commit real credentials, tokens, passwords or other secrets into source control.
+Use:
+Environment variables
+CI/CD secret variables
+Approved secret-management solutions
+External configuration
+Generated execution artifacts should also generally remain outside source control.
+Recommended .gitignore entries:
+target/
+*.jtl
+performance-report/
+MyCash_Performance_Report_*.zip
+35. Summary
+The MyCash API Automation Framework provides a unified automation platform for both functional API quality validation and performance engineering.
+                    MyCash API Automation
+                             |
+             +---------------+---------------+
+             |                               |
+       Functional Testing             Performance Testing
+             |                               |
+     REST Assured + TestNG          JMeter Java DSL
+             |                               |
+     Excel + Postman                Excel-driven APIs
+             |                               |
+     API Validation                 Load / Stress / Spike / Soak
+             |                               |
+     Allure + Extent                JTL + HTML + JMeter Dashboard
+The framework is designed to provide a reusable, scalable and configuration-driven approach to API quality automation across functional and performance testing.
