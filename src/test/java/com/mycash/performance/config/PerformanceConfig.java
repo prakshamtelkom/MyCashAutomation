@@ -35,6 +35,7 @@ public final class PerformanceConfig {
     private final int authRetryCount;
     private final long authRetryDelayMs;
     private final String resultsFile;
+    private final String preflightApi;
 
     private static final Properties FILE_PROPERTIES = loadFileProperties();
 
@@ -64,6 +65,7 @@ public final class PerformanceConfig {
         authRetryCount = nonNegativeInt("perf.authRetryCount", 1);
         authRetryDelayMs = nonNegativeLong("perf.authRetryDelayMs", 1000);
         resultsFile = value("perf.resultsFile", "target/performance-results.jtl");
+        preflightApi = value("perf.preflightApi", "");
         validate();
     }
 
@@ -195,6 +197,7 @@ public final class PerformanceConfig {
     public int getAuthRetryCount() { return authRetryCount; }
     public long getAuthRetryDelayMs() { return authRetryDelayMs; }
     public String getResultsFile() { return resultsFile; }
+    public String getPreflightApi() { return preflightApi; }
 
     @Override
     public String toString() {

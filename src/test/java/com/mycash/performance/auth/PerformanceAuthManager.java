@@ -42,8 +42,14 @@ public final class PerformanceAuthManager {
         String deviceId = required(p, user + ".deviceId");
         String msisdn = required(p, user + ".msisdn");
         String userType = required(p, user + ".userType");
-        String pincode = property(p, user + ".pincode", property(p, user + ".pinCode", "9999"));
+        String pinCode = property(p, user + ".pincode", property(p, user + ".pinCode", "9999"));
+        // Keep the existing functional-compatible default (email), but allow QA
+        // environments to explicitly provide the OTP msisdn when it differs.
+        String otpMsisdn = property(p, user + ".otpMsisdn", email);
 
+        // IMPORTANT: keep the performance login request identical to the
+        // working functional TokenManager contract. Do not add optional
+        // fields such as notificationToken/otpState/jwttoken here.
         JSONObject authPayload = new JSONObject()
                 .put("id", Integer.parseInt(id))
                 .put("email", email)
@@ -67,8 +73,8 @@ public final class PerformanceAuthManager {
         // The existing working functional flow uses the admin email as the
         // msisdn value for OTP verification. Keep that behavior unchanged.
         JSONObject otpPayload = new JSONObject()
-                .put("msisdn", email)
-                .put("pincode", pincode)
+                .put("msisdn", otpMsisdn)
+                .put("pincode", pinCode)
                 .put("deviceId", deviceId);
 
         Response otpResponse = given()
@@ -214,6 +220,12 @@ public final class PerformanceAuthManager {
                     .post();
 
             if (last.statusCode() >= 200 && last.statusCode() < 300) {
+                return last;
+            }
+
+            // Do not retry normal 4xx authentication failures (for example,
+            // invalid credentials/payload). Retry only transient 5xx responses.
+            if (last.statusCode() >= 400 && last.statusCode() < 500) {
                 return last;
             }
         }

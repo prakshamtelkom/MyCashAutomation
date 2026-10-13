@@ -37,11 +37,17 @@ public class PerformanceTest {
         // long run of meaningless 401/403 samples and tells us whether the
         // problem is the token itself or JMeter request construction.
         if (config.isAuthRequired()) {
-            PerformanceApi preflightApi = apis.stream()
-                    .filter(api -> "GET".equalsIgnoreCase(api.api().getMethod()))
-                    .findFirst()
-                    .orElse(apis.get(0));
-            PerformanceAuthManager.validateTokenAgainstApi(config, preflightApi, token);
+            String preflightName = config.getPreflightApi();
+            if (preflightName != null && !preflightName.isBlank()) {
+                PerformanceApi preflightApi = apis.stream()
+                        .filter(api -> api.name().equalsIgnoreCase(preflightName))
+                        .findFirst()
+                        .orElseThrow(() -> new IllegalArgumentException(
+                                "Configured perf.preflightApi was not found in the selected workbook/API set: " + preflightName));
+                PerformanceAuthManager.validateTokenAgainstApi(config, preflightApi, token);
+            } else {
+                System.out.println("PERFORMANCE AUTH PREFLIGHT: skipped (perf.preflightApi is blank).");
+            }
         }
 
         prepareReporting(config);
@@ -52,32 +58,30 @@ public class PerformanceTest {
         apis.forEach(a -> System.out.println("  - " + a.name() + " [weight=" + a.weight() + "]"));
         System.out.println("===================================================\n");
 
-        TestPlanStats stats = testPlan(
-                PerformancePlanFactory.createThreadGroup(config, apis, token),
-                jtlWriter(
-                        resultsPath(config).getParent().toString(),
-                        resultsPath(config).getFileName().toString()
-                ),
-                htmlReporter(PERFORMANCE_REPORT_DIR.toString(), "jmeter-dashboard")
-        ).run();
+        TestPlanStats stats;
+        try {
+            stats = testPlan(
+                    PerformancePlanFactory.createThreadGroup(config, apis, token),
+                    jtlWriter(
+                            resultsPath(config).getParent().toString(),
+                            resultsPath(config).getFileName().toString()
+                    ),
+                    htmlReporter(PERFORMANCE_REPORT_DIR.toString(), "jmeter-dashboard")
+            ).run();
+        } catch (RuntimeException executionFailure) {
+            // JMeter can fail after the JTL writer has already persisted useful samples.
+            // Never lose the management report just because the Apache dashboard/listener
+            // failed or the execution aborted late.
+            finalizeReports(config, apis.size());
+            throw executionFailure;
+        }
 
-        // Keep the official JMeter dashboard plus a self-contained management dashboard.
-        // The management index has no external JS/CSS/data dependencies, so it works when
-        // opened directly from an extracted ZIP (file://) without a local web server.
-        PerformanceReportGenerator.generate(
-                resultsPath(config),
-                PERFORMANCE_REPORT_DIR,
-                config,
-                apis.size(),
-                "jmeter-dashboard/index.html"
-        );
-
-        // Generate the management package before threshold assertions so the
-        // complete dashboard is available even when a performance gate fails.
-        zipDirectory(PERFORMANCE_REPORT_DIR, MANAGEMENT_REPORT_ZIP);
+        // Keep the official Apache JMeter dashboard plus the self-contained management
+        // dashboard. Generate the management report from the JTL before assertions so it
+        // remains available even when a performance threshold later fails.
+        finalizeReports(config, apis.size());
 
         printSummary(stats, config, apis.size());
-        printReportLocations();
 
         assertThat(stats.overall().errorsCount())
                 .as("Performance test errors")
@@ -92,6 +96,33 @@ public class PerformanceTest {
             assertThat(stats.overall().sampleTimePercentile99())
                     .as("P99 response time")
                     .isLessThanOrEqualTo(Duration.ofMillis(config.getP99Ms()));
+        }
+    }
+
+    private void finalizeReports(PerformanceConfig config, int apiCount) {
+        try {
+            Path jtl = resultsPath(config);
+            if (!Files.isRegularFile(jtl) || Files.size(jtl) <= 0) {
+                System.err.println("PERFORMANCE REPORT: JTL not available; skipping HTML/ZIP generation: " + jtl);
+                return;
+            }
+
+            PerformanceReportGenerator.generate(
+                    jtl,
+                    PERFORMANCE_REPORT_DIR,
+                    config,
+                    apiCount,
+                    "jmeter-dashboard/index.html"
+            );
+
+            if (Files.isDirectory(PERFORMANCE_REPORT_DIR)) {
+                zipDirectory(PERFORMANCE_REPORT_DIR, MANAGEMENT_REPORT_ZIP);
+            }
+            printReportLocations();
+        } catch (Exception reportFailure) {
+            // Reporting must never hide the real JMeter execution/assertion failure.
+            System.err.println("PERFORMANCE REPORT GENERATION FAILED: " + reportFailure.getMessage());
+            reportFailure.printStackTrace(System.err);
         }
     }
 
