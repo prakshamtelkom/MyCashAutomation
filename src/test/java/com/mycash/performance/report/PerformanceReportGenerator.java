@@ -127,6 +127,24 @@ public final class PerformanceReportGenerator {
         String codeRows = m.byCode.entrySet().stream()
                 .sorted(Map.Entry.comparingByKey()).map(e -> "<tr><td><b>" + esc(e.getKey()) + "</b></td><td>" + e.getValue() + "</td><td>" + pct(e.getValue(), m.total) + "%</td></tr>")
                 .collect(Collectors.joining());
+        double errorRate = m.total == 0 ? 0 : m.errors * 100.0 / m.total;
+        boolean p95Pass = config.getP95Ms() <= 0 || m.p95 <= config.getP95Ms();
+        boolean p99Pass = config.getP99Ms() <= 0 || m.p99 <= config.getP99Ms();
+        boolean errorPass = errorRate <= config.getErrorRatePercent();
+        boolean overallPass = errorPass && p95Pass && p99Pass && m.total > 0;
+        String verdictClass = overallPass ? "status" : "status bad";
+        String verdict = overallPass ? "PASS" : "FAIL";
+        String attentionRows = m.byLabel.values().stream()
+                .filter(e -> e.errors > 0 || (config.getP95Ms() > 0 && percentile(e.times, .95) > config.getP95Ms()) || (config.getP99Ms() > 0 && percentile(e.times, .99) > config.getP99Ms()))
+                .sorted(Comparator.comparingDouble((EndpointMetrics e) -> pctValue(e.errors, e.count)).reversed()
+                        .thenComparingDouble(e -> percentile(e.times, .95)).reversed())
+                .limit(10)
+                .map(PerformanceReportGenerator::attentionRow)
+                .collect(Collectors.joining());
+        if (attentionRows.isBlank()) {
+            attentionRows = "<tr><td colspan='6' class='ok'><b>No API crossed the configured error/P95/P99 thresholds.</b></td></tr>";
+        }
+        String conclusion = conclusion(overallPass, errorRate, m, config);
 
         return "<!doctype html><html><head><meta charset='utf-8'><meta name='viewport' content='width=device-width,initial-scale=1'>"
                 + "<title>MyCash Performance Report</title><style>"
@@ -137,11 +155,20 @@ public final class PerformanceReportGenerator {
                 + ".section{background:white;border-radius:10px;padding:20px;margin:16px 0;box-shadow:0 1px 4px #0001}h2{font-size:18px;margin:0 0 14px}"
                 + ".cols{display:grid;grid-template-columns:1fr 1fr;gap:16px}.chart{width:100%;overflow:auto}.chart svg{width:100%;min-width:600px;height:280px}"
                 + "table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:9px;border-bottom:1px solid #eaecf0;text-align:right}th:first-child,td:first-child{text-align:left}th{background:#f8fafc;color:#475467}"
-                + ".ok{color:#067647}.bad{color:#b42318}.meta{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}.pill{background:#eef4ff;padding:10px;border-radius:8px;font-size:13px}"
+                + ".ok{color:#067647}.bad{color:#b42318}.warn{color:#b54708}.status{display:inline-block;padding:7px 12px;border-radius:999px;font-weight:700;font-size:13px;background:#ecfdf3;color:#067647}.status.bad{background:#fef3f2;color:#b42318}.status.warn{background:#fffaeb;color:#b54708}.summary{font-size:14px;line-height:1.55}.summary ul{margin:8px 0 0 20px;padding:0}.meaning{background:#f8fafc;border-left:4px solid #98a2b3;padding:12px 14px;border-radius:6px;margin-top:12px}.meta{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}.pill{background:#eef4ff;padding:10px;border-radius:8px;font-size:13px}"
                 + "a{color:#075e54;font-weight:600}.foot{font-size:12px;color:#667085;margin-top:18px}@media(max-width:900px){.grid{grid-template-columns:repeat(2,1fr)}.cols{grid-template-columns:1fr}.meta{grid-template-columns:1fr 1fr}}"
                 + "</style></head><body><div class='wrap'>"
                 + "<div class='hero'><h1>MyCash API Performance Report</h1><div class='muted'>Management-ready offline dashboard • Generated " + generated + "</div></div>"
                 + "<div class='meta'><div class='pill'><b>Scenario</b><br>" + scenario + "</div><div class='pill'><b>Target</b><br>" + baseUrl + "</div><div class='pill'><b>APIs configured</b><br>" + apiCount + "</div><div class='pill'><b>Samples analyzed</b><br>" + m.total + "</div></div>"
+                + "<div class='section summary'><h2>Executive Summary</h2><p><span class='" + verdictClass + "'>Overall Result: " + verdict + "</span></p>"
+                + "<ul><li><b>Success rate:</b> " + pct(m.success, m.total) + "% (" + fmt(m.success) + " of " + fmt(m.total) + " requests)</li>"
+                + "<li><b>Error rate:</b> " + pct(m.errors, m.total) + "% against configured limit of " + DF.format(config.getErrorRatePercent()) + "% — <b class='" + (errorPass ? "ok" : "bad") + "'>" + (errorPass ? "PASS" : "FAIL") + "</b></li>"
+                + "<li><b>P95:</b> " + DF.format(m.p95) + " ms against " + threshold(config.getP95Ms()) + " — <b class='" + (p95Pass ? "ok" : "bad") + "'>" + (p95Pass ? "PASS" : "FAIL") + "</b></li>"
+                + "<li><b>P99:</b> " + DF.format(m.p99) + " ms against " + threshold(config.getP99Ms()) + " — <b class='" + (p99Pass ? "ok" : "bad") + "'>" + (p99Pass ? "PASS" : "FAIL") + "</b></li></ul>"
+                + "<div class='meaning'><b>What this means:</b> P95 means 95% of requests completed within the reported time. Throughput is the approximate number of requests processed per second. Use the Apache JMeter dashboard below for technical drill-down.</div>"
+                + "<p><b>Conclusion:</b> " + conclusion + "</p></div>"
+                + "<div class='section'><h2>Test Configuration</h2><table><tbody>"
+                + "<tr><td>Environment</td><td>" + esc(config.getEnv()) + "</td></tr><tr><td>Scenario</td><td>" + scenario + "</td></tr><tr><td>Workbook</td><td>" + esc(config.getWorkbook()) + "</td></tr><tr><td>APIs selected</td><td>" + apiCount + "</td></tr><tr><td>Configured threads</td><td>" + config.getThreads() + "</td></tr><tr><td>Max threads</td><td>" + config.getMaxThreads() + "</td></tr><tr><td>Duration</td><td>" + config.getDurationSeconds() + " sec</td></tr><tr><td>Ramp-up</td><td>" + config.getRampUpSeconds() + " sec</td></tr><tr><td>Execution mode</td><td>" + esc(config.getExecutionMode()) + "</td></tr><tr><td>Target RPS</td><td>" + DF.format(config.getTargetRps()) + "</td></tr></tbody></table></div>"
                 + "<div class='grid'>"
                 + card("Total Requests", fmt(m.total), "") + card("Successful", fmt(m.success), "ok") + card("Errors", fmt(m.errors), m.errors == 0 ? "ok" : "bad")
                 + card("Error Rate", pct(m.errors, m.total) + "%", m.errors == 0 ? "ok" : "bad") + card("Throughput", DF.format(m.throughput) + " req/s", "") + card("Avg Response", DF.format(m.avg) + " ms", "")
@@ -151,6 +178,7 @@ public final class PerformanceReportGenerator {
                 + "<div class='cols'><div class='section'><h2>Throughput Over Time</h2><div class='chart'>" + timeChart(m, true) + "</div></div><div class='section'><h2>Average Response Time Over Time</h2><div class='chart'>" + timeChart(m, false) + "</div></div></div>"
                 + "<div class='cols'><div class='section'><h2>HTTP Response Distribution</h2><table><thead><tr><th>Response Code</th><th>Requests</th><th>Share</th></tr></thead><tbody>" + codeRows + "</tbody></table></div>"
                 + "<div class='section'><h2>Configured Thresholds</h2><table><tbody><tr><td>P95 threshold</td><td>" + threshold(config.getP95Ms()) + "</td></tr><tr><td>P99 threshold</td><td>" + threshold(config.getP99Ms()) + "</td></tr><tr><td>Max error rate</td><td>" + DF.format(config.getErrorRatePercent()) + "%</td></tr></tbody></table><p class='foot'>Threshold pass/fail is enforced by the performance test. This page summarizes the measured JTL results.</p></div></div>"
+                + "<div class='section'><h2>APIs Requiring Attention</h2><p class='foot'>Only APIs with errors or a P95/P99 threshold breach are shown here. This is the first place to look when triaging a test.</p><div style='overflow:auto'><table><thead><tr><th>API / Sampler</th><th>Requests</th><th>Errors</th><th>Error %</th><th>P95</th><th>P99</th></tr></thead><tbody>" + attentionRows + "</tbody></table></div></div>"
                 + "<div class='section'><h2>API / Sampler Summary</h2><div style='overflow:auto'><table><thead><tr><th>API / Sampler</th><th>Requests</th><th>Errors</th><th>Error %</th><th>Avg ms</th><th>Min</th><th>Max</th><th>P90</th><th>P95</th><th>P99</th></tr></thead><tbody>" + endpointRows + "</tbody></table></div></div>"
                 + "<div class='section'><h2>Detailed JMeter Dashboard</h2><p>The official JMeter dashboard is included separately in the report package.</p><p><a href='" + escAttr(jmeterDashboardPath) + "'>Open official JMeter dashboard</a></p><p class='foot'>The management dashboard above is deliberately self-contained and can be opened directly from an extracted ZIP without a local web server.</p></div>"
                 + "<div class='foot'>Source: " + esc(jtlFileName(config)) + " • Generated from JMeter JTL samples.</div>"
@@ -163,6 +191,27 @@ public final class PerformanceReportGenerator {
     private static String endpointRow(EndpointMetrics e) {
         return "<tr><td>" + esc(e.label) + "</td><td>" + e.count + "</td><td>" + e.errors + "</td><td>" + pct(e.errors,e.count) + "%</td><td>" + DF.format(e.avg()) + "</td><td>" + e.min + "</td><td>" + e.max + "</td><td>" + DF.format(percentile(e.times, .90)) + "</td><td>" + DF.format(percentile(e.times, .95)) + "</td><td>" + DF.format(percentile(e.times, .99)) + "</td></tr>";
     }
+
+    private static double pctValue(long n, long total) { return total == 0 ? 0 : n * 100.0 / total; }
+
+    private static String attentionRow(EndpointMetrics e) {
+        return "<tr><td>" + esc(e.label) + "</td><td>" + fmt(e.count) + "</td><td>" + fmt(e.errors) + "</td><td>" + pct(e.errors, e.count) + "%</td><td>" + DF.format(percentile(e.times, .95)) + " ms</td><td>" + DF.format(percentile(e.times, .99)) + " ms</td></tr>";
+    }
+
+    private static String conclusion(boolean pass, double errorRate, Metrics m, PerformanceConfig config) {
+        if (!pass) {
+            if (!errorPass(errorRate, config)) return "The test exceeded the configured error-rate limit. Review failed APIs and HTTP response codes before increasing load.";
+            if (!p95Pass(m, config)) return "P95 response time exceeded the configured threshold. Review the slowest APIs before increasing concurrency.";
+            if (!p99Pass(m, config)) return "P99 response time exceeded the configured threshold. Review long-tail latency before increasing concurrency.";
+            return "The test did not produce a complete set of samples.";
+        }
+        if (m.errors > 0) return "The baseline is within the configured thresholds, but " + fmt(m.errors) + " failed requests were observed. Review the API attention section before declaring the run completely clean.";
+        return "The baseline is within the configured error-rate, P95 and P99 thresholds. Proceed to Load Testing with higher concurrency to establish capacity and degradation points.";
+    }
+
+    private static boolean errorPass(double rate, PerformanceConfig c) { return rate <= c.getErrorRatePercent(); }
+    private static boolean p95Pass(Metrics m, PerformanceConfig c) { return c.getP95Ms() <= 0 || m.p95 <= c.getP95Ms(); }
+    private static boolean p99Pass(Metrics m, PerformanceConfig c) { return c.getP99Ms() <= 0 || m.p99 <= c.getP99Ms(); }
 
     private static String histogram(Metrics m) {
         int[] buckets = {0,100,250,500,1000,2000,5000,10000,Integer.MAX_VALUE};
