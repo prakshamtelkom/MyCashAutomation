@@ -1,250 +1,237 @@
 name: MyCash API Automation
-
 'on':
-  workflow_dispatch:
-    inputs:
-      environment:
-        description: "Target environment"
-        required: true
-        type: choice
-        options:
-          - QA
-          - STAGING
-        default: QA
-      suite:
-        description: "Test suite to execute"
-        required: true
-        type: choice
-        options:
-          - functional
-          - performance
-        default: functional
-
+workflow_dispatch:
+inputs:
+environment:
+description: "Target environment"
+required: true
+type: choice
+options:
+QA
+STAGING
+default: QA
+suite:
+description: "Test suite to execute"
+required: true
+type: choice
+options:
+functional
+performance
+default: functional
 permissions:
-  contents: read
-
+contents: read
 jobs:
-  api-automation:
-    name: Run MyCash API Tests
-    runs-on: ubuntu-latest
-    timeout-minutes: 60
-
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Set up Java 21
-        uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: '21'
-          cache: maven
-
-      - name: Show Java and Maven versions
-        run: |
-          java -version
-          mvn -version
-
-      - name: Run functional tests
-        if: inputs.suite == 'functional'
-        run: mvn test -Denv=${{ inputs.environment }}
-
-      - name: Run performance tests
-        if: inputs.suite == 'performance'
-        run: mvn test -Denv=${{ inputs.environment }} -DtestngXmlSuiteFiles=src/test/resources/testng-performance.xml
-
-      - name: Package test reports
-        if: always()
-        env:
-          SUITE: ${{ inputs.suite }}
-          TARGET_ENV: ${{ inputs.environment }}
-        run: |
-          python3 - <<'PY'
-          import os
-          import glob
-          import zipfile
-          import xml.etree.ElementTree as ET
-
-          os.makedirs("target", exist_ok=True)
-
-          paths = [
-              "target/surefire-reports",
-              "target/allure-results",
-              "target/extent-reports",
-              "target/performance-results.jtl",
-              "target/performance-report"
-          ]
-
-          files = []
-          for path in paths:
-              if os.path.isfile(path):
-                  files.append(path)
-              elif os.path.isdir(path):
-                  files.extend(
-                      f for f in glob.glob(
-                          path + "/**/*", recursive=True
-                      ) if os.path.isfile(f)
-                  )
-
-          total = failures = errors = skipped = 0
-
-          for filename in glob.glob(
-              "target/surefire-reports/TEST-*.xml"
-          ):
-              try:
-                  root = ET.parse(filename).getroot()
-                  total += int(root.attrib.get("tests", 0))
-                  failures += int(root.attrib.get("failures", 0))
-                  errors += int(root.attrib.get("errors", 0))
-                  skipped += int(root.attrib.get("skipped", 0))
-              except (ET.ParseError, ValueError, OSError):
-                  pass
-
-          summary = (
-              f"Environment: {os.getenv('TARGET_ENV', 'unknown')}\n"
-              f"Suite: {os.getenv('SUITE', 'unknown')}\n"
-              f"JUnit tests: {total}\n"
-              f"Failures: {failures}\n"
-              f"Errors: {errors}\n"
-              f"Skipped: {skipped}\n"
-              f"Report files collected: {len(files)}\n"
-          )
-
-          with open("target/email-summary.txt", "w") as f:
-              f.write(summary)
-
-          print(summary)
-
-          if files:
-              with zipfile.ZipFile(
-                  "target/mycash-report.zip",
-                  "w",
-                  zipfile.ZIP_DEFLATED
-              ) as archive:
-                  for filename in files:
-                      archive.write(filename)
-              print("Report ZIP created.")
-          else:
-              print("No report files were generated.")
-          PY
-
-      - name: Email automation report
-        if: always()
-        env:
-          SMTP_USERNAME: ${{ secrets.M365_SMTP_USERNAME }}
-          SMTP_PASSWORD: ${{ secrets.M365_SMTP_PASSWORD }}
-          EMAIL_TO: ${{ secrets.REPORT_EMAIL_TO }}
-          SUITE: ${{ inputs.suite }}
-          TARGET_ENV: ${{ inputs.environment }}
-          JOB_STATUS: ${{ job.status }}
-          REPOSITORY: ${{ github.repository }}
-          RUN_ID: ${{ github.run_id }}
-          RUN_ATTEMPT: ${{ github.run_attempt }}
-          SERVER_URL: ${{ github.server_url }}
-        run: |
-          python3 - <<'PY'
-          import os
-          import smtplib
-          from pathlib import Path
-          from email.message import EmailMessage
-          from email.utils import getaddresses
-
-          required = [
-              "SMTP_USERNAME",
-              "SMTP_PASSWORD",
-              "EMAIL_TO"
-          ]
-
-          missing = [
-              key for key in required if not os.getenv(key)
-          ]
-
-          if missing:
-              raise RuntimeError(
-                  "Missing required GitHub Secrets: "
-                  + ", ".join(missing)
-              )
-
-          suite = os.environ["SUITE"]
-          env_name = os.environ["TARGET_ENV"]
-          status = os.environ["JOB_STATUS"]
-
-          run_url = (
-              f"{os.environ['SERVER_URL']}/"
-              f"{os.environ['REPOSITORY']}/actions/runs/"
-              f"{os.environ['RUN_ID']}"
-              f"/attempts/{os.environ['RUN_ATTEMPT']}"
-          )
-
-          summary_file = Path("target/email-summary.txt")
-          summary = (
-              summary_file.read_text()
-              if summary_file.exists()
-              else "Test summary was not generated."
-          )
-
-          message = EmailMessage()
-          message["Subject"] = (
-              f"MyCash {suite.title()} Report | "
-              f"{env_name} | {status.upper()}"
-          )
-          message["From"] = os.environ["SMTP_USERNAME"]
-
-          recipients = [
-              address
-              for _, address in getaddresses(
-                  [os.environ["EMAIL_TO"]]
-              )
-              if address
-          ]
-
-          if not recipients:
-              raise RuntimeError(
-                  "No valid email recipients configured."
-              )
-
-          message["To"] = ", ".join(recipients)
-
-          message.set_content(
-              "MyCash API Automation Report\n\n"
-              f"Environment: {env_name}\n"
-              f"Suite: {suite}\n"
-              f"Workflow status: {status}\n\n"
-              f"{summary}\n"
-              f"GitHub run: {run_url}\n"
-          )
-
-          archive = Path("target/mycash-report.zip")
-
-          if archive.exists():
-              size = archive.stat().st_size
-
-              if size <= 15 * 1024 * 1024:
-                  message.add_attachment(
-                      archive.read_bytes(),
-                      maintype="application",
-                      subtype="zip",
-                      filename="mycash-report.zip"
-                  )
-              else:
-                  print(
-                      "Report ZIP exceeds 15 MB; "
-                      "attachment omitted. See GitHub run."
-                  )
-
-          with smtplib.SMTP(
-              "smtp.office365.com",
-              587,
-              timeout=30
-          ) as smtp:
-              smtp.ehlo()
-              smtp.starttls()
-              smtp.ehlo()
-              smtp.login(
-                  os.environ["SMTP_USERNAME"],
-                  os.environ["SMTP_PASSWORD"]
-              )
-              smtp.send_message(message)
-
-          print("Automation report email sent.")
-          PY
+api-automation:
+name: Run MyCash API Tests
+runs-on: ubuntu-latest
+timeout-minutes: 60
+steps:
+name: Checkout repository
+uses: actions/checkout@v4
+name: Set up Java 21
+uses: actions/setup-java@v4
+with:
+distribution: temurin
+java-version: '21'
+cache: maven
+name: Show Java and Maven versions
+run: |
+java -version
+mvn -version
+# NEW: Check API host connectivity before tests
+name: Check API connectivity
+env:
+QA_API_BASE_URL: ${{ secrets.QA_API_BASE_URL }}
+run: |
+if [ -z "$QA_API_BASE_URL" ]; then
+echo "ERROR: GitHub Secret QA_API_BASE_URL is not configured."
+exit 1
+fi
+echo "Checking API host connectivity..."
+# Print only the hostname, not credentials or URL paths
+python3 - <<'PY'
+import os
+from urllib.parse import urlparse
+url = os.environ["QA_API_BASE_URL"]
+parsed = urlparse(url)
+if parsed.scheme not in ("http", "https") or not parsed.hostname:
+raise SystemExit("ERROR: QA_API_BASE_URL must be a valid HTTP(S) URL.")
+print(f"Host: {parsed.hostname}")
+print(f"Scheme: {parsed.scheme}")
+PY
+# Check DNS, TCP connectivity and HTTP response.
+# A non-2xx HTTP response can still prove the host is reachable.
+curl --silent --show-error \
+--output /dev/null \
+--connect-timeout 10 \
+--max-time 15 \
+--write-out "HTTP status: %{http_code}
+Connection time: %{time_connect}s
+Total time: %{time_total}s
+" \
+"$QA_API_BASE_URL" \
+|| {
+echo "API host connectivity check failed."
+echo "Check DNS, network access, firewall, VPN and URL configuration."
+exit 1
+}
+name: Run functional tests
+if: inputs.suite == 'functional'
+run: mvn -B -ntp test -Denv=${{ inputs.environment }}
+name: Run performance tests
+if: inputs.suite == 'performance'
+run: mvn -B -ntp test -Denv=${{ inputs.environment }} -DtestngXmlSuiteFiles=src/test/resources/testng-performance.xml
+name: Package test reports
+if: always()
+env:
+SUITE: ${{ inputs.suite }}
+TARGET_ENV: ${{ inputs.environment }}
+run: |
+python3 - <<'PY'
+import os
+import glob
+import zipfile
+import xml.etree.ElementTree as ET
+os.makedirs("target", exist_ok=True)
+paths = [
+"target/surefire-reports",
+"target/allure-results",
+"target/extent-reports",
+"target/performance-results.jtl",
+"target/performance-report"
+]
+files = []
+for path in paths:
+if os.path.isfile(path):
+files.append(path)
+elif os.path.isdir(path):
+files.extend(
+f for f in glob.glob(path + "//", recursive=True)
+if os.path.isfile(f)
+)
+total = failures = errors = skipped = 0
+for filename in glob.glob("target/surefire-reports/TEST-.xml"):
+try:
+root = ET.parse(filename).getroot()
+total += int(root.attrib.get("tests", 0))
+failures += int(root.attrib.get("failures", 0))
+errors += int(root.attrib.get("errors", 0))
+skipped += int(root.attrib.get("skipped", 0))
+except (ET.ParseError, ValueError, OSError):
+pass
+summary = (
+f"Environment: {os.getenv('TARGET_ENV', 'unknown')}
+"
+f"Suite: {os.getenv('SUITE', 'unknown')}
+"
+f"JUnit tests: {total}
+"
+f"Failures: {failures}
+"
+f"Errors: {errors}
+"
+f"Skipped: {skipped}
+"
+f"Report files collected: {len(files)}
+"
+)
+with open("target/email-summary.txt", "w") as f:
+f.write(summary)
+print(summary)
+if files:
+with zipfile.ZipFile(
+"target/mycash-report.zip", "w", zipfile.ZIP_DEFLATED
+) as archive:
+for filename in files:
+archive.write(filename)
+print("Report ZIP created.")
+else:
+print("No report files were generated.")
+PY
+name: Email automation report
+if: always()
+env:
+SMTP_USERNAME: ${{ secrets.M365_SMTP_USERNAME }}
+SMTP_PASSWORD: ${{ secrets.M365_SMTP_PASSWORD }}
+EMAIL_TO: ${{ secrets.REPORT_EMAIL_TO }}
+SUITE: ${{ inputs.suite }}
+TARGET_ENV: ${{ inputs.environment }}
+JOB_STATUS: ${{ job.status }}
+REPOSITORY: ${{ github.repository }}
+RUN_ID: ${{ github.run_id }}
+RUN_ATTEMPT: ${{ github.run_attempt }}
+SERVER_URL: ${{ github.server_url }}
+run: |
+python3 - <<'PY'
+import os
+import smtplib
+from pathlib import Path
+from email.message import EmailMessage
+from email.utils import getaddresses
+required = ["SMTP_USERNAME", "SMTP_PASSWORD", "EMAIL_TO"]
+missing = [key for key in required if not os.getenv(key)]
+if missing:
+raise RuntimeError(
+"Missing required GitHub Secrets: " + ", ".join(missing)
+)
+suite = os.environ["SUITE"]
+env_name = os.environ["TARGET_ENV"]
+status = os.environ["JOB_STATUS"]
+run_url = (
+f"{os.environ['SERVER_URL']}/{os.environ['REPOSITORY']}/actions/runs/"
+f"{os.environ['RUN_ID']}/attempts/{os.environ['RUN_ATTEMPT']}"
+)
+summary_file = Path("target/email-summary.txt")
+summary = (
+summary_file.read_text()
+if summary_file.exists()
+else "Test summary was not generated."
+)
+message = EmailMessage()
+message["Subject"] = (
+f"MyCash {suite.title()} Report | {env_name} | {status.upper()}"
+)
+message["From"] = os.environ["SMTP_USERNAME"]
+recipients = [
+address for _, address in getaddresses([os.environ["EMAIL_TO"]])
+if address
+]
+if not recipients:
+raise RuntimeError("No valid email recipients configured.")
+message["To"] = ", ".join(recipients)
+message.set_content(
+"MyCash API Automation Report
+"
+f"Environment: {env_name}
+"
+f"Suite: {suite}
+"
+f"Workflow status: {status}
+"
+f"{summary}
+GitHub run: {run_url}
+"
+)
+archive = Path("target/mycash-report.zip")
+if archive.exists():
+size = archive.stat().st_size
+if size <= 15 * 1024 * 1024:
+message.add_attachment(
+archive.read_bytes(),
+maintype="application",
+subtype="zip",
+filename="mycash-report.zip"
+)
+else:
+print("Report ZIP exceeds 15 MB; attachment omitted.")
+with smtplib.SMTP("smtp.office365.com", 587, timeout=30) as smtp:
+smtp.ehlo()
+smtp.starttls()
+smtp.ehlo()
+smtp.login(
+os.environ["SMTP_USERNAME"],
+os.environ["SMTP_PASSWORD"]
+)
+smtp.send_message(message)
+print("Automation report email sent.")
+PY
