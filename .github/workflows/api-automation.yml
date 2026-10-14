@@ -45,31 +45,13 @@ jobs:
           java -version
           mvn -version
 
-      - name: Check API connectivity
-        env:
-          QA_API_BASE_URL: ${{ secrets.QA_API_BASE_URL }}
-        run: |
-          if [ -z "$QA_API_BASE_URL" ]; then
-            echo "ERROR: Configure the QA_API_BASE_URL repository secret."
-            exit 1
-          fi
-
-          echo "Checking API host connectivity..."
-
-          curl --silent --show-error \
-            --output /dev/null \
-            --connect-timeout 10 \
-            --max-time 15 \
-            --write-out "HTTP status: %{http_code}\nConnection time: %{time_connect}s\nTotal time: %{time_total}s\n" \
-            "$QA_API_BASE_URL"
-
       - name: Run functional tests
         if: inputs.suite == 'functional'
-        run: mvn -B -ntp test -Denv=${{ inputs.environment }}
+        run: mvn test -Denv=${{ inputs.environment }}
 
       - name: Run performance tests
         if: inputs.suite == 'performance'
-        run: mvn -B -ntp test -Denv=${{ inputs.environment }} -DtestngXmlSuiteFiles=src/test/resources/testng-performance.xml
+        run: mvn test -Denv=${{ inputs.environment }} -DtestngXmlSuiteFiles=src/test/resources/testng-performance.xml
 
       - name: Package test reports
         if: always()
@@ -99,13 +81,16 @@ jobs:
                   files.append(path)
               elif os.path.isdir(path):
                   files.extend(
-                      f for f in glob.glob(path + "/**/*", recursive=True)
-                      if os.path.isfile(f)
+                      f for f in glob.glob(
+                          path + "/**/*", recursive=True
+                      ) if os.path.isfile(f)
                   )
 
           total = failures = errors = skipped = 0
 
-          for filename in glob.glob("target/surefire-reports/TEST-*.xml"):
+          for filename in glob.glob(
+              "target/surefire-reports/TEST-*.xml"
+          ):
               try:
                   root = ET.parse(filename).getroot()
                   total += int(root.attrib.get("tests", 0))
