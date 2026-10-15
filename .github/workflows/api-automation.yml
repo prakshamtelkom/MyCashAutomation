@@ -45,13 +45,173 @@ jobs:
           java -version
           mvn -version
 
+      # Diagnostic only: runs before API automation tests.
+      - name: Diagnose QA API connectivity
+        shell: bash
+        env:
+          TARGET_ENV: ${{ inputs.environment }}
+        run: |
+          python3 - <<'PY'
+          import glob
+          import os
+          import re
+          import urllib.request
+          import urllib.error
+          from pathlib import Path
+          from urllib.parse import urlsplit
+
+          env_name = os.environ["TARGET_ENV"].lower()
+
+          # Locate the environment properties file.
+          all_properties = glob.glob(
+              "**/*.properties",
+              recursive=True
+          )
+
+          files = [
+              f for f in all_properties
+              if Path(f).name.lower() == f"{env_name}.properties"
+          ]
+
+          if not files:
+              raise SystemExit(
+                  f"No {env_name}.properties file found. "
+                  "Check the actual configuration filename."
+              )
+
+          # Identify base URL properties without printing their values.
+          candidates = []
+
+          for filename in files:
+              for line in Path(filename).read_text(
+                  encoding="utf-8-sig"
+              ).splitlines():
+
+                  line = line.strip()
+
+                  if not line or line.startswith(("#", "!")):
+                      continue
+
+                  match = re.match(
+                      r"([^:=\s]+)\s*[=:]\s*(.*)",
+                      line
+                  )
+
+                  if not match:
+                      continue
+
+                  key, value = match.groups()
+
+                  normalized = (
+                      key.lower()
+                      .replace("_", "")
+                      .replace("-", "")
+                      .replace(".", "")
+                  )
+
+                  value = value.strip()
+
+                  if (
+                      value.startswith(("http://", "https://"))
+                      and (
+                          "baseurl" in normalized
+                          or "baseuri" in normalized
+                      )
+                  ):
+                      candidates.append(
+                          (filename, key, value)
+                      )
+
+          # Avoid ambiguity when the same property is duplicated.
+          unique_urls = {
+              (key, url)
+              for _, key, url in candidates
+          }
+
+          if len(unique_urls) != 1:
+              print(
+                  "Could not identify exactly one unique "
+                  "base URL property."
+              )
+              print(
+                  "Candidate property keys:",
+                  sorted({key for _, key, _ in candidates})
+              )
+              raise SystemExit(
+                  "Check the environment properties files "
+                  "and configure one unambiguous base URL."
+              )
+
+          key, url = next(iter(unique_urls))
+
+          matching_files = sorted({
+              filename
+              for filename, candidate_key, candidate_url
+              in candidates
+              if candidate_key == key and candidate_url == url
+          })
+
+          print("Environment:", env_name.upper())
+          print("Config file(s):", ", ".join(matching_files))
+          print("Base URL property identified:", key)
+
+          # Display only the host, never the URL path or credentials.
+          parsed = urlsplit(url)
+
+          if not parsed.hostname:
+              raise SystemExit(
+                  "The configured base URL has no valid hostname."
+              )
+
+          print("Target host:", parsed.hostname)
+          print("Checking HTTP connectivity; URL path hidden...")
+
+          try:
+              request = urllib.request.Request(
+                  url,
+                  method="GET",
+                  headers={
+                      "User-Agent": "MyCash-CI-Diagnostic"
+                  }
+              )
+
+              with urllib.request.urlopen(
+                  request,
+                  timeout=10
+              ) as response:
+                  print("HTTP status:", response.status)
+                  print("API host is reachable.")
+
+          except urllib.error.HTTPError as error:
+              # HTTP responses prove the server answered.
+              print("HTTP status:", error.code)
+              print(
+                  "Server responded. This does not confirm "
+                  "the OTP endpoint or authentication works."
+              )
+
+          except Exception as error:
+              print(
+                  "Connectivity check failed:",
+                  type(error).__name__
+              )
+              print(
+                  "Check DNS, firewall, network access, TLS "
+                  "and the environment URL configuration."
+              )
+              raise SystemExit(1)
+          PY
+
       - name: Run functional tests
         if: inputs.suite == 'functional'
         run: mvn test -Denv=${{ inputs.environment }}
 
       - name: Run performance tests
         if: inputs.suite == 'performance'
-        run: mvn test -Denv=${{ inputs.environment }} -DtestngXmlSuiteFiles=src/test/resources/testng-performance.xml
+        run: >
+          mvn test
+          -Denv=${{ inputs.environment }}
+          -DtestngXmlSuiteFiles=src/test/resources/testng-performance.xml
 
       - name: Package test reports
         if: always()
@@ -76,14 +236,17 @@ jobs:
           ]
 
           files = []
+
           for path in paths:
               if os.path.isfile(path):
                   files.append(path)
               elif os.path.isdir(path):
                   files.extend(
                       f for f in glob.glob(
-                          path + "/**/*", recursive=True
-                      ) if os.path.isfile(f)
+                          path + "/**/*",
+                          recursive=True
+                      )
+                      if os.path.isfile(f)
                   )
 
           total = failures = errors = skipped = 0
@@ -123,6 +286,7 @@ jobs:
               ) as archive:
                   for filename in files:
                       archive.write(filename)
+
               print("Report ZIP created.")
           else:
               print("No report files were generated.")
