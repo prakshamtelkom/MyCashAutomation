@@ -1,3 +1,4 @@
+
 name: MyCash API Automation
 
 'on':
@@ -26,32 +27,34 @@ permissions:
 jobs:
   api-automation:
     name: Run MyCash API Tests
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, Windows, X64]
     timeout-minutes: 60
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Set up Java 21
-        uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: '21'
-          cache: maven
-
-      - name: Show Java and Maven versions
+      - name: Verify installed tools
+        shell: pwsh
         run: |
           java -version
-          mvn -version
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
-      # Diagnostic only: runs before API automation tests.
-      - name: Diagnose QA API connectivity
-        shell: bash
+          git --version
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+          mvn -version
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+          python --version
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Diagnose API connectivity
+        shell: pwsh
         env:
           TARGET_ENV: ${{ inputs.environment }}
         run: |
-          python3 - <<'PY'
+          @'
           import glob
           import os
           import re
@@ -62,53 +65,39 @@ jobs:
 
           env_name = os.environ["TARGET_ENV"].lower()
 
-          # Locate the environment properties file.
-          all_properties = glob.glob(
-              "**/*.properties",
-              recursive=True
-          )
-
           files = [
-              f for f in all_properties
+              f for f in glob.glob("**/*.properties", recursive=True)
               if Path(f).name.lower() == f"{env_name}.properties"
           ]
 
           if not files:
               raise SystemExit(
-                  f"No {env_name}.properties file found. "
-                  "Check the actual configuration filename."
+                  f"No {env_name}.properties file found."
               )
 
-          # Identify base URL properties without printing their values.
           candidates = []
 
           for filename in files:
               for line in Path(filename).read_text(
                   encoding="utf-8-sig"
               ).splitlines():
-
                   line = line.strip()
 
                   if not line or line.startswith(("#", "!")):
                       continue
 
-                  match = re.match(
-                      r"([^:=\s]+)\s*[=:]\s*(.*)",
-                      line
-                  )
+                  match = re.match(r"([^:=\s]+)\s*[=:]\s*(.*)", line)
 
                   if not match:
                       continue
 
                   key, value = match.groups()
-
                   normalized = (
                       key.lower()
                       .replace("_", "")
                       .replace("-", "")
                       .replace(".", "")
                   )
-
                   value = value.strip()
 
                   if (
@@ -118,108 +107,86 @@ jobs:
                           or "baseuri" in normalized
                       )
                   ):
-                      candidates.append(
-                          (filename, key, value)
-                      )
+                      candidates.append((filename, key, value))
 
-          # Avoid ambiguity when the same property is duplicated.
-          unique_urls = {
-              (key, url)
-              for _, key, url in candidates
-          }
+          unique_urls = {(key, url) for _, key, url in candidates}
 
           if len(unique_urls) != 1:
-              print(
-                  "Could not identify exactly one unique "
-                  "base URL property."
-              )
-              print(
-                  "Candidate property keys:",
-                  sorted({key for _, key, _ in candidates})
-              )
               raise SystemExit(
-                  "Check the environment properties files "
-                  "and configure one unambiguous base URL."
+                  "Could not identify exactly one unique base URL. "
+                  "Check the environment properties files."
               )
 
           key, url = next(iter(unique_urls))
-
-          matching_files = sorted({
-              filename
-              for filename, candidate_key, candidate_url
-              in candidates
-              if candidate_key == key and candidate_url == url
-          })
-
-          print("Environment:", env_name.upper())
-          print("Config file(s):", ", ".join(matching_files))
-          print("Base URL property identified:", key)
-
-          # Display only the host, never the URL path or credentials.
           parsed = urlsplit(url)
 
           if not parsed.hostname:
-              raise SystemExit(
-                  "The configured base URL has no valid hostname."
-              )
+              raise SystemExit("Configured base URL is invalid.")
 
+          print("Environment:", env_name.upper())
+          print("Config files:", ", ".join(sorted({
+              filename for filename, candidate_key, candidate_url
+              in candidates if candidate_key == key
+              and candidate_url == url
+          })))
+          print("Base URL property:", key)
           print("Target host:", parsed.hostname)
-          print("Checking HTTP connectivity; URL path hidden...")
+          print("Checking API host connectivity...")
 
           try:
               request = urllib.request.Request(
                   url,
                   method="GET",
-                  headers={
-                      "User-Agent": "MyCash-CI-Diagnostic"
-                  }
+                  headers={"User-Agent": "MyCash-CI-Diagnostic"}
               )
 
-              with urllib.request.urlopen(
-                  request,
-                  timeout=10
-              ) as response:
+              with urllib.request.urlopen(request, timeout=10) as response:
                   print("HTTP status:", response.status)
                   print("API host is reachable.")
 
           except urllib.error.HTTPError as error:
-              # HTTP responses prove the server answered.
               print("HTTP status:", error.code)
               print(
-                  "Server responded. This does not confirm "
-                  "the OTP endpoint or authentication works."
+                  "Server responded. Authentication and test endpoints "
+                  "still need to be validated by the test suite."
               )
 
           except Exception as error:
-              print(
-                  "Connectivity check failed:",
-                  type(error).__name__
+              print("Connectivity check failed:", type(error).__name__)
+              raise SystemExit(
+                  "The runner could not access the configured API URL. "
+                  "Check network access and environment configuration."
               )
-              print(
-                  "Check DNS, firewall, network access, TLS "
-                  "and the environment URL configuration."
-              )
-              raise SystemExit(1)
-          PY
+          '@ | python -
+
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
       - name: Run functional tests
         if: inputs.suite == 'functional'
-        run: mvn test -Denv=${{ inputs.environment }}
+        shell: pwsh
+        env:
+          TARGET_ENV: ${{ inputs.environment }}
+        run: |
+          mvn test "-Denv=$env:TARGET_ENV"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
       - name: Run performance tests
         if: inputs.suite == 'performance'
-        run: >
-          mvn test
-          -Denv=${{ inputs.environment }}
-          -DtestngXmlSuiteFiles=src/test/resources/testng-performance.xml
+        shell: pwsh
+        env:
+          TARGET_ENV: ${{ inputs.environment }}
+        run: |
+          mvn test "-Denv=$env:TARGET_ENV" "-DtestngXmlSuiteFiles=src/test/resources/testng-performance.xml"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
       - name: Package test reports
         if: always()
+        shell: pwsh
         env:
           SUITE: ${{ inputs.suite }}
           TARGET_ENV: ${{ inputs.environment }}
         run: |
-          python3 - <<'PY'
+          @'
           import os
           import glob
           import zipfile
@@ -242,18 +209,13 @@ jobs:
                   files.append(path)
               elif os.path.isdir(path):
                   files.extend(
-                      f for f in glob.glob(
-                          path + "/**/*",
-                          recursive=True
-                      )
+                      f for f in glob.glob(path + "/**/*", recursive=True)
                       if os.path.isfile(f)
                   )
 
           total = failures = errors = skipped = 0
 
-          for filename in glob.glob(
-              "target/surefire-reports/TEST-*.xml"
-          ):
+          for filename in glob.glob("target/surefire-reports/TEST-*.xml"):
               try:
                   root = ET.parse(filename).getroot()
                   total += int(root.attrib.get("tests", 0))
@@ -273,7 +235,7 @@ jobs:
               f"Report files collected: {len(files)}\n"
           )
 
-          with open("target/email-summary.txt", "w") as f:
+          with open("target/email-summary.txt", "w", encoding="utf-8") as f:
               f.write(summary)
 
           print(summary)
@@ -290,10 +252,13 @@ jobs:
               print("Report ZIP created.")
           else:
               print("No report files were generated.")
-          PY
+          '@ | python -
+
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
       - name: Email automation report
         if: always()
+        shell: pwsh
         env:
           SMTP_USERNAME: ${{ secrets.M365_SMTP_USERNAME }}
           SMTP_PASSWORD: ${{ secrets.M365_SMTP_PASSWORD }}
@@ -306,7 +271,7 @@ jobs:
           RUN_ATTEMPT: ${{ github.run_attempt }}
           SERVER_URL: ${{ github.server_url }}
         run: |
-          python3 - <<'PY'
+          @'
           import os
           import smtplib
           from pathlib import Path
@@ -319,9 +284,7 @@ jobs:
               "EMAIL_TO"
           ]
 
-          missing = [
-              key for key in required if not os.getenv(key)
-          ]
+          missing = [key for key in required if not os.getenv(key)]
 
           if missing:
               raise RuntimeError(
@@ -342,7 +305,7 @@ jobs:
 
           summary_file = Path("target/email-summary.txt")
           summary = (
-              summary_file.read_text()
+              summary_file.read_text(encoding="utf-8")
               if summary_file.exists()
               else "Test summary was not generated."
           )
@@ -356,19 +319,14 @@ jobs:
 
           recipients = [
               address
-              for _, address in getaddresses(
-                  [os.environ["EMAIL_TO"]]
-              )
+              for _, address in getaddresses([os.environ["EMAIL_TO"]])
               if address
           ]
 
           if not recipients:
-              raise RuntimeError(
-                  "No valid email recipients configured."
-              )
+              raise RuntimeError("No valid email recipients configured.")
 
           message["To"] = ", ".join(recipients)
-
           message.set_content(
               "MyCash API Automation Report\n\n"
               f"Environment: {env_name}\n"
@@ -392,15 +350,11 @@ jobs:
                   )
               else:
                   print(
-                      "Report ZIP exceeds 15 MB; "
-                      "attachment omitted. See GitHub run."
+                      "Report ZIP exceeds 15 MB; attachment omitted. "
+                      "See the GitHub Actions run."
                   )
 
-          with smtplib.SMTP(
-              "smtp.office365.com",
-              587,
-              timeout=30
-          ) as smtp:
+          with smtplib.SMTP("smtp.office365.com", 587, timeout=30) as smtp:
               smtp.ehlo()
               smtp.starttls()
               smtp.ehlo()
@@ -411,4 +365,6 @@ jobs:
               smtp.send_message(message)
 
           print("Automation report email sent.")
-          PY
+          '@ | python -
+
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
